@@ -1,0 +1,5 @@
+import React,{useEffect,useState} from 'react';import {useParams} from 'react-router-dom';import Seo from '../components/Seo';import ProductGrid from '../components/ProductGrid';import {getProducts} from '../lib/api';import {COLLECTIONS} from '../lib/config';import {useBootstrap} from '../context/BootstrapContext';
+export default function Collection(){const {slug}=useParams();const info=COLLECTIONS.find(c=>c.slug===slug);const boot=useBootstrap();const [products,setProducts]=useState(boot.collectionSlug===slug?boot.products||[]:[]);
+ useEffect(()=>{getProducts({category:slug,limit:48}).then(setProducts).catch(()=>{})},[slug]);
+ if(!info)return <section className="section container"><h1>Collection not found</h1></section>;
+ return <><Seo title={info.name} description={`${info.copy} Shop ${info.name.toLowerCase()} from Ivy & Pearls.`} path={`/collections/${slug}/`}/><section className="page-hero"><div className="container"><p className="eyebrow">Collection</p><h1>{info.name}</h1><p>{info.copy}</p></div></section><section className="section"><div className="container"><ProductGrid products={products}/></div></section></>}

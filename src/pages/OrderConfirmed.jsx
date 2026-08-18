@@ -1,0 +1,4 @@
+import React,{useEffect} from 'react';import {Link,useSearchParams} from 'react-router-dom';import Seo from '../components/Seo';import {useCart} from '../context/CartContext';
+export default function OrderConfirmed(){const [q]=useSearchParams();const cart=useCart();const order=q.get('order');useEffect(()=>{cart.clear()},[]);
+ return <><Seo title="Order confirmed" description="Your Ivy & Pearls order has been received." path="/order-confirmed/" noindex/><section className="confirmation"><p className="eyebrow">Thank you</p><h1>Your order is <em>confirmed.</em></h1><p>{order?<>Order <strong>{order}</strong> has been received.</>:<>Your order has been received.</>} We’ll email you as it moves through fulfilment and again when tracking is available.</p><div className="confirmation__actions"><Link className="button button--dark" to="/account/">View account</Link><Link to="/shop/">Continue shopping ↗</Link></div></section></>
+}

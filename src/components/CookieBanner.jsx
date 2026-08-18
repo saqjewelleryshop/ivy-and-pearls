@@ -1,0 +1,10 @@
+import React,{useEffect,useState} from 'react';import {Link} from 'react-router-dom';
+const KEY='ivy_cookie_consent_v2';
+export default function CookieBanner(){const [show,setShow]=useState(false),[manage,setManage]=useState(false),[analytics,setAnalytics]=useState(false),[marketing,setMarketing]=useState(false);
+ useEffect(()=>{setShow(!localStorage.getItem(KEY));const open=()=>{setShow(true);setManage(true)};addEventListener('ivy:cookie-settings',open);return()=>removeEventListener('ivy:cookie-settings',open)},[]);
+ function save(a,m){localStorage.setItem(KEY,JSON.stringify({essential:true,analytics:a,marketing:m,updatedAt:new Date().toISOString()}));setShow(false);window.dispatchEvent(new CustomEvent('ivy:consent',{detail:{analytics:a,marketing:m}}))}
+ if(!show)return null;
+ return <div className="cookie-banner" role="dialog" aria-modal="true" aria-label="Cookie preferences"><div><p className="eyebrow">Your privacy</p><h2>Cookies, considered.</h2><p>We use essential cookies to run the store. Optional analytics and marketing cookies are used only with your permission. Read our <Link to="/cookies/">cookie policy</Link>.</p>
+ {manage&&<div className="cookie-options"><label><span><b>Essential</b><small>Required for security, checkout and account functions.</small></span><input type="checkbox" checked disabled/></label><label><span><b>Analytics</b><small>Helps us understand how the site is used.</small></span><input type="checkbox" checked={analytics} onChange={e=>setAnalytics(e.target.checked)}/></label><label><span><b>Marketing</b><small>Allows optional advertising and campaign measurement.</small></span><input type="checkbox" checked={marketing} onChange={e=>setMarketing(e.target.checked)}/></label></div>}
+ <div className="cookie-actions"><button className="button button--gold" onClick={()=>save(true,true)}>Accept all</button><button className="button button--outline" onClick={()=>save(false,false)}>Reject optional</button>{manage?<button className="text-button" onClick={()=>save(analytics,marketing)}>Save choices</button>:<button className="text-button" onClick={()=>setManage(true)}>Manage</button>}</div></div></div>
+}
