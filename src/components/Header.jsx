@@ -24,6 +24,7 @@ export default function Header(){
    <header className={`site-header ${hidden?'site-header--hidden':''} ${atTop?'site-header--top':''}`}>
     <div className="site-header__top">
       <button className="menu-toggle" onClick={()=>setMenu(v=>!v)} aria-expanded={menu} aria-label={menu?'Close menu':'Open menu'}><span/><span/></button>
+      <Link className="wordmark" to="/" aria-label="Ivy & Pearls home">Ivy <b>&amp;</b> Pearls</Link>
       <div className="header-actions">
         <Link to="/search/" aria-label="Search" className="header-icon"><SearchIcon/></Link>
         <Link to="/wishlist/" aria-label="Wishlist" className="header-icon"><HeartIcon/></Link>
@@ -33,7 +34,6 @@ export default function Header(){
         </button>
       </div>
     </div>
-    <Link className="wordmark" to="/" aria-label="Ivy & Pearls home">Ivy <b>&amp;</b> Pearls</Link>
     <nav className="desktop-nav" aria-label="Main navigation">{NAV.map(([n,p])=><NavLink key={p} to={p}>{n}</NavLink>)}</nav>
     <nav className={`mobile-menu ${menu?'is-open':''}`} aria-label="Mobile navigation">{NAV.map(([n,p])=><Link key={p} to={p} onClick={()=>setMenu(false)}>{n}</Link>)}<Link to="/wishlist/" onClick={()=>setMenu(false)}>Saved</Link><Link to={user?'/account/':'/login/'} onClick={()=>setMenu(false)}>Account</Link></nav>
    </header>
