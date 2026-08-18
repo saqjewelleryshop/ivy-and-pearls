@@ -24,7 +24,7 @@ export default function Header(){
    <header className={`site-header ${hidden?'site-header--hidden':''} ${atTop?'site-header--top':''}`}>
     <div className="site-header__top">
       <button className="menu-toggle" onClick={()=>setMenu(v=>!v)} aria-expanded={menu} aria-label={menu?'Close menu':'Open menu'}><span/><span/></button>
-      <Link className="wordmark" to="/" aria-label="Ivy & Pearls home">Ivy <b>&amp;</b> Pearls</Link>
+      <div className="site-header__logo"><Link className="wordmark" to="/" aria-label="Ivy & Pearls home">Ivy <b>&amp;</b> Pearls</Link></div>
       <div className="header-actions">
         <Link to="/search/" aria-label="Search" className="header-icon"><SearchIcon/></Link>
         <Link to="/wishlist/" aria-label="Wishlist" className="header-icon"><HeartIcon/></Link>
