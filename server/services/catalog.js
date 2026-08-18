@@ -50,7 +50,7 @@ export async function listProducts({ category, collection, ivyEdit, newArrival, 
 export async function getProductBySlug(slug) {
   const db = supabaseAdmin();
   const { data, error } = await db.from('products').select(PRODUCT_SELECT)
-    .eq('slug',slug).eq('status','active').maybeSingle();
+    .eq('slug',slug).eq('status','active').neq('visibility','hidden').maybeSingle();
   if (error) throw error;
   return normalize(data);
 }

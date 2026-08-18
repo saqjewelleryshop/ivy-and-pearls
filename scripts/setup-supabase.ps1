@@ -55,6 +55,11 @@ $sql3 = Get-Content (Join-Path $migrationDir "003_product_merchandising.sql") -R
 Invoke-SupabaseSql $sql3 | Out-Null
 Write-Host "Product merchandising schema applied." -ForegroundColor Green
 
+Write-Host "Applying Stripe catalogue/payments migration..." -ForegroundColor Cyan
+$sql4 = Get-Content (Join-Path $migrationDir "004_stripe_catalog_payments.sql") -Raw
+Invoke-SupabaseSql $sql4 | Out-Null
+Write-Host "Stripe catalogue/payments schema applied." -ForegroundColor Green
+
 Write-Host "Verifying schema..." -ForegroundColor Cyan
 $verifySql = @"
 select
@@ -66,6 +71,8 @@ select
   to_regclass('public.categories') is not null as categories,
   to_regclass('public.attributes') is not null as attributes,
   to_regclass('public.zq_sync_log') is not null as zq_sync_log,
+  to_regclass('public.payment_settings') is not null as payment_settings,
+  to_regclass('public.stripe_webhook_events') is not null as stripe_webhook_events,
   (select count(*) from public.journal_posts where status='published') as published_journal_posts;
 "@
 $verification = Invoke-SupabaseSql $verifySql
@@ -76,7 +83,7 @@ $rlsSql = @"
 select relname as table_name, relrowsecurity as rls_enabled
 from pg_class
 where relnamespace = 'public'::regnamespace
-  and relname in ('profiles','products','product_variants','product_images','addresses','orders','order_items','order_events','wishlist_items','newsletter_subscribers','contact_messages','journal_posts','discount_codes','categories','collections','tags','attributes','attribute_values','product_attributes','zq_sync_log','product_links')
+  and relname in ('profiles','products','product_variants','product_images','addresses','orders','order_items','order_events','wishlist_items','newsletter_subscribers','contact_messages','journal_posts','discount_codes','categories','collections','tags','attributes','attribute_values','product_attributes','zq_sync_log','product_links','payment_settings','stripe_webhook_events')
 order by relname;
 "@
 $rls = Invoke-SupabaseSql $rlsSql

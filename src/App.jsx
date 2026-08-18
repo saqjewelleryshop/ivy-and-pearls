@@ -6,6 +6,7 @@ import Shop from './pages/Shop';
 import Collections from './pages/Collections';
 import Collection from './pages/Collection';
 import Product from './pages/Product';
+import ProductPreview from './pages/ProductPreview';
 import Checkout from './pages/Checkout';
 import OrderConfirmed from './pages/OrderConfirmed';
 import Login from './pages/Login';
@@ -36,6 +37,7 @@ export default function App(){return <Layout><Routes>
  <Route path="/new-arrivals/" element={<Shop mode="new"/>}/>
  <Route path="/the-ivy-edit/" element={<Shop mode="ivy"/>}/>
  <Route path="/most-loved/" element={<Shop mode="ivy"/>}/>
+ <Route path="/admin/preview/product/:slug/" element={<ProductPreview/>}/>
  <Route path="/product/:slug/" element={<Product/>}/>
  <Route path="/checkout/" element={<Checkout/>}/>
  <Route path="/order-confirmed/" element={<OrderConfirmed/>}/>

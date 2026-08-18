@@ -6,6 +6,7 @@ import { listProducts, getProductBySlug, listJournal, getJournalPost, syncZqInve
 import { createPayment, loadOrderFull, submitOrderToZq, syncOpenZqOrders } from '../services/orders.js';
 import { zq } from '../lib/zq.js';
 import { sendEmail } from '../services/email.js';
+import { getPaymentSettings, getStripeRuntimeConfig, configuredSecretsStatus, testStripeConnection, syncProductToStripe, setStripeProductActive } from '../services/stripe-products.js';
 import sanitizeHtml from 'sanitize-html';
 
 const router=Router();
@@ -24,6 +25,18 @@ const addressSchema=z.object({
 });
 
 router.get('/health', (req,res)=>res.json({ok:true,service:'ivy-pearls-api'}));
+
+router.get('/stripe/config', async (req,res,next)=>{
+  try{
+    const runtime=await getStripeRuntimeConfig();
+    res.json({
+      enabled:Boolean(runtime.settings.enabled),
+      mode:runtime.settings.mode,
+      currency:runtime.settings.currency||'GBP',
+      publishableKey:runtime.publishableKey||''
+    });
+  }catch(e){next(e);}
+});
 
 router.get('/products', async (req,res,next)=>{
   try{
@@ -205,11 +218,11 @@ router.post('/admin/zq/import/:id', requireAdmin, async(req,res,next)=>{
     const {data:product,error}=await db.from('products').insert({
       slug:config.slug,title:config.title,short_description:config.shortDescription,
       description:sanitizeHtml(config.description||zqp.description||'',{allowedTags:['p','br','strong','em','ul','ol','li','h2','h3'],allowedAttributes:{}}),category:config.category,collection:config.collection||null,
-      material_summary:config.materialSummary,status:config.active?'active':'needs_review',
+      material_summary:config.materialSummary,status:'needs_review',
       zq_product_id:Number(zqp.id),zq_source_status:zqp.status||null,zq_last_synced_at:new Date().toISOString(),zq_raw:zqp,
       seo_title:`${config.title} | Ivy & Pearls`,
       seo_description:config.shortDescription||`Discover ${config.title} from Ivy & Pearls.`,
-      published_at:config.active?new Date().toISOString():null
+      published_at:null
     }).select().single();
     if(error)throw error;
     const specs=(zqp.specs||[]).filter(s=>s.status==='PUBLISHED');
@@ -231,7 +244,17 @@ router.post('/admin/zq/import/:id', requireAdmin, async(req,res,next)=>{
       sort_order:i,is_primary:Boolean(im.isMain)||i===0
     }));
     if(imgs.length){const {error:ie}=await db.from('product_images').insert(imgs);if(ie)throw ie;}
-    res.status(201).json({productId:product.id,slug:product.slug});
+    if(config.active){
+      try{
+        await syncProductToStripe(product.id);
+        const {error:pe}=await db.from('products').update({status:'active',published_at:new Date().toISOString()}).eq('id',product.id);
+        if(pe)throw pe;
+      }catch(stripeError){
+        await db.from('products').update({status:'ready',stripe_sync_status:'error',stripe_sync_error:String(stripeError.message||stripeError).slice(0,2000)}).eq('id',product.id);
+        return res.status(502).json({error:`Product imported but not published because Stripe sync failed: ${stripeError.message}`,productId:product.id,slug:product.slug});
+      }
+    }
+    res.status(201).json({productId:product.id,slug:product.slug,status:config.active?'active':'needs_review'});
   }catch(e){next(e);}
 });
 
@@ -267,13 +290,72 @@ router.post('/admin/catalogue-meta/:type', requireAdmin, async(req,res,next)=>{
   }catch(e){next(e);}
 });
 
+router.get('/admin/products/preview/:slug', requireAdmin, async(req,res,next)=>{
+  try{
+    const db=supabaseAdmin();
+    const {data,error}=await db.from('products').select(`
+      *,product_variants(*),product_images(*)
+    `).eq('slug',req.params.slug).maybeSingle();
+    if(error)throw error;
+    if(!data)return res.status(404).json({error:'Product not found.'});
+    const product={
+      ...data,
+      variants:(data.product_variants||[]).filter(v=>v.active).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)),
+      images:(data.product_images||[]).sort((a,b)=>Number(b.is_primary)-Number(a.is_primary)||(a.sort_order||0)-(b.sort_order||0))
+    };
+    delete product.product_variants;delete product.product_images;
+    res.json({product});
+  }catch(e){next(e);}
+});
+
+router.get('/admin/payments/stripe', requireAdmin, async(req,res,next)=>{
+  try{
+    const db=supabaseAdmin();
+    const settings=await getPaymentSettings();
+    const {data:lastEvents,error}=await db.from('stripe_webhook_events').select('*').order('created_at',{ascending:false}).limit(10);
+    if(error)throw error;
+    res.json({settings,secrets:configuredSecretsStatus(),lastEvents:lastEvents||[]});
+  }catch(e){next(e);}
+});
+
+router.patch('/admin/payments/stripe', requireAdmin, async(req,res,next)=>{
+  try{
+    const body=z.object({
+      enabled:z.boolean().optional(),
+      mode:z.enum(['test','live']).optional(),
+      test_publishable_key:z.string().max(500).nullable().optional(),
+      live_publishable_key:z.string().max(500).nullable().optional(),
+      currency:z.string().length(3).transform(v=>v.toUpperCase()).optional(),
+      automatic_payment_methods:z.boolean().optional(),
+      receipt_emails:z.boolean().optional(),
+      minimum_order_minor:z.number().int().min(0).optional(),
+      statement_descriptor:z.string().max(22).nullable().optional(),
+      confirmLive:z.string().optional()
+    }).parse(req.body);
+    if(body.mode==='live'&&body.confirmLive!=='LIVE')return res.status(400).json({error:'Type LIVE to confirm switching to live payments.'});
+    delete body.confirmLive;
+    const db=supabaseAdmin();
+    const {data,error}=await db.from('payment_settings').update({...body,updated_at:new Date().toISOString()}).eq('id',1).select().single();
+    if(error)throw error;
+    res.json({settings:data,secrets:configuredSecretsStatus()});
+  }catch(e){next(e);}
+});
+
+router.post('/admin/payments/stripe/test', requireAdmin, async(req,res,next)=>{
+  try{res.json(await testStripeConnection());}catch(e){next(e);}
+});
+
+router.post('/admin/products/:id/sync-stripe', requireAdmin, async(req,res,next)=>{
+  try{res.json({ok:true,result:await syncProductToStripe(req.params.id)});}catch(e){next(e);}
+});
+
 router.get('/admin/products/:id/detail', requireAdmin, async(req,res,next)=>{
   try{
     const db=supabaseAdmin();
     const {data,error}=await db.from('products').select(`
       *,product_variants(*),product_images(*),product_attributes(*),
       product_categories(*,categories(*)),product_collections(*,collections(*)),product_tags(*,tags(*)),
-      product_links(*),zq_sync_log(*)
+      product_links!product_links_product_id_fkey(*),zq_sync_log(*)
     `).eq('id',req.params.id).single();
     if(error)throw error;res.json({product:data});
   }catch(e){next(e);}
@@ -295,9 +377,35 @@ router.patch('/admin/products/:id', requireAdmin, async(req,res,next)=>{
     }).parse(req.body);
     const db=supabaseAdmin();const patch={...allowed};
     if(typeof patch.description==='string')patch.description=sanitizeHtml(patch.description,{allowedTags:['p','br','strong','em','ul','ol','li','h2','h3','h4','a'],allowedAttributes:{a:['href','title']}});
-    if(allowed.status==='active')patch.published_at=new Date().toISOString();
+    const {data:existing,error:existingError}=await db.from('products').select('id,status').eq('id',req.params.id).single();
+    if(existingError)throw existingError;
+
+    const isPublishing=allowed.status==='active'&&existing.status!=='active';
+    if(isPublishing){
+      try{
+        // Stripe must be commerce-ready before the storefront is made public.
+        await syncProductToStripe(req.params.id);
+      }catch(stripeError){
+        await db.from('products').update({status:'ready',stripe_sync_status:'error',stripe_sync_error:String(stripeError.message||stripeError).slice(0,2000)}).eq('id',req.params.id);
+        return res.status(502).json({error:`Stripe sync failed. Product remains Ready. ${stripeError.message}`});
+      }
+      patch.published_at=new Date().toISOString();
+    }
+
+    const isUnpublishing=existing.status==='active'&&allowed.status&&allowed.status!=='active';
+    if(isUnpublishing)await setStripeProductActive(req.params.id,false).catch(console.error);
+
     const {data,error}=await db.from('products').update(patch).eq('id',req.params.id).select().single();
-    if(error)throw error;res.json({product:data});
+    if(error)throw error;
+
+    // Keep Stripe descriptive fields aligned when an already-published product is edited.
+    const stripeRelevant=['title','slug','short_description','description','internal_sku'];
+    if(data.status==='active'&&!isPublishing&&stripeRelevant.some(k=>Object.hasOwn(allowed,k))){
+      await syncProductToStripe(req.params.id).catch(async stripeError=>{
+        await db.from('products').update({stripe_sync_status:'error',stripe_sync_error:String(stripeError.message||stripeError).slice(0,2000)}).eq('id',req.params.id);
+      });
+    }
+    res.json({product:data});
   }catch(e){next(e);}
 });
 
@@ -345,7 +453,12 @@ router.patch('/admin/variants/:id', requireAdmin, async(req,res,next)=>{
       barcode:z.string().max(100).nullable().optional(),attributes:z.record(z.string(),z.any()).optional(),active:z.boolean().optional(),manage_stock:z.boolean().optional(),allow_backorder:z.boolean().optional(),low_stock_threshold:z.number().int().nullable().optional(),image_url:z.string().max(1000).nullable().optional()
     }).parse(req.body);
     const db=supabaseAdmin();const {data,error}=await db.from('product_variants').update(body).eq('id',req.params.id).select().single();
-    if(error)throw error;res.json({variant:data});
+    if(error)throw error;
+    if(Object.hasOwn(body,'price_minor')||Object.hasOwn(body,'active')||Object.hasOwn(body,'title')||Object.hasOwn(body,'sku')){
+      const {data:parent}=await db.from('products').select('status').eq('id',data.product_id).maybeSingle();
+      if(parent?.status==='active')await syncProductToStripe(data.product_id);
+    }
+    res.json({variant:data});
   }catch(e){next(e);}
 });
 router.delete('/admin/variants/:id', requireAdmin, async(req,res,next)=>{

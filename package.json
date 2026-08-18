@@ -9,7 +9,7 @@
     "build:ssr": "vite build --ssr src/entry-server.jsx --outDir dist/server",
     "build": "npm run build:client && npm run build:ssr",
     "start": "NODE_ENV=production node server/index.js",
-    "check": "node --check server/index.js && node --check server/lib/zq.js && node --check server/lib/supabase.js && node --check server/routes/api.js",
+    "check": "node --check server/index.js && node --check server/lib/zq.js && node --check server/lib/supabase.js && node --check server/routes/api.js && node --check server/routes/webhooks.js && node --check server/services/orders.js && node --check server/services/stripe-products.js",
     "audit:seo": "node scripts/seo-audit.mjs",
     "audit:lighthouse": "lhci autorun"
   },

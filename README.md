@@ -429,3 +429,48 @@ Apply `supabase/migrations/003_product_merchandising.sql` after the base commerc
 - merchandising flags and storefront visibility
 
 This split lets products stay fulfilment-safe and syncable while the public presentation remains entirely controlled by Ivy & Pearls.
+
+## Stripe admin + automatic catalogue sync
+
+Migration `004_stripe_catalog_payments.sql` adds Stripe catalogue IDs, payment settings, and webhook health logging.
+
+### Server environment
+
+Keep secret keys server-side only:
+
+```env
+STRIPE_TEST_SECRET_KEY=sk_test_...
+STRIPE_TEST_WEBHOOK_SECRET=whsec_...
+STRIPE_LIVE_SECRET_KEY=sk_live_...
+STRIPE_LIVE_WEBHOOK_SECRET=whsec_...
+```
+
+The Stripe publishable keys are configured in **Admin → Payments**. Checkout loads the active publishable key from `/api/stripe/config`, so changing Test/Live mode does not require rebuilding the React bundle.
+
+### Publishing behaviour
+
+When a product changes from Draft / Needs Review / Ready to Published:
+
+1. The backend validates there is at least one active sellable variant with a retail price.
+2. It creates or updates the Stripe Product.
+3. It creates one Stripe Price per active variant.
+4. Stripe IDs are stored back in Supabase.
+5. Only after Stripe sync succeeds does the product become `active` publicly.
+6. If Stripe fails, the product remains `ready` and the error is visible in the product Payments tab.
+
+Changing a published variant price archives the old Stripe Price and creates a replacement because Stripe Price amounts are immutable.
+
+### Local webhook testing
+
+With Stripe CLI installed:
+
+```powershell
+stripe login
+stripe listen --forward-to http://localhost:5173/api/webhooks/stripe
+```
+
+Copy the emitted `whsec_...` into `STRIPE_TEST_WEBHOOK_SECRET`, restart the app, and use Admin → Payments → Test Stripe connection before testing checkout.
+
+### Admin preview
+
+Unpublished products now preview through `/admin/preview/product/:slug/`. The preview endpoint requires an authenticated admin and renders with `noindex` plus an **ADMIN PREVIEW — NOT PUBLIC** banner.

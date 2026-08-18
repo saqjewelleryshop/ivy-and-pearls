@@ -1,13 +1,9 @@
-import Stripe from 'stripe';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { getProductsByVariantIds } from './catalog.js';
 import { zq } from '../lib/zq.js';
 import { sendEmail, orderConfirmationHtml, dispatchHtml } from './email.js';
+import { stripeClientForCurrentMode } from './stripe-products.js';
 
-function stripeClient() {
-  if(!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY is not configured.');
-  return new Stripe(process.env.STRIPE_SECRET_KEY);
-}
 
 export function createOrderNumber() {
   const d=new Date();
@@ -60,7 +56,10 @@ export async function createPayment({items,email,shippingAddress,billingAddress,
     err.status=400; throw err;
   }
   const priced=await priceCart(items,discountCode);
-  if(priced.total < 50) throw new Error('Order total is below the minimum payment amount.');
+  const { stripe, runtime }=await stripeClientForCurrentMode();
+  if(!runtime.settings.enabled) throw Object.assign(new Error('Payments are currently disabled.'),{status:503});
+  const minimum=Number(runtime.settings.minimum_order_minor??50);
+  if(priced.total < minimum) throw new Error('Order total is below the minimum payment amount.');
   const db=supabaseAdmin();
   const orderNumber=createOrderNumber();
   const {data:order,error}=await db.from('orders').insert({
@@ -71,11 +70,10 @@ export async function createPayment({items,email,shippingAddress,billingAddress,
   if(error) throw error;
   const {error:itemError}=await db.from('order_items').insert(priced.lines.map(l=>({...l,order_id:order.id})));
   if(itemError) throw itemError;
-  const stripe=stripeClient();
   const intent=await stripe.paymentIntents.create({
-    amount:priced.total,currency:'gbp',
-    automatic_payment_methods:{enabled:true},
-    receipt_email:email,
+    amount:priced.total,currency:String(runtime.settings.currency||'GBP').toLowerCase(),
+    automatic_payment_methods:{enabled:Boolean(runtime.settings.automatic_payment_methods)},
+    ...(runtime.settings.receipt_emails?{receipt_email:email}:{}),
     metadata:{ivy_order_id:order.id,ivy_order_number:orderNumber}
   },{idempotencyKey:`ivy-payment-${order.id}`});
   await db.from('orders').update({stripe_payment_intent_id:intent.id}).eq('id',order.id);
