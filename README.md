@@ -393,3 +393,39 @@ Before taking payments:
 16. Run Rich Results Test on a live product URL.
 17. Validate sitemap/robots in Search Console.
 18. Complete a real low-value live order before public launch.
+
+## Product merchandising admin (ZQ-safe)
+
+The admin catalogue deliberately separates **supplier data** from **customer-facing merchandising**.
+
+Workflow:
+
+1. Search ZQ in **Admin → ZQ Import**.
+2. Import a supplier product. It defaults to `needs_review` unless explicitly published.
+3. Open **Admin → Products** and edit the product in the WooCommerce-style workspace.
+4. Control title, slug, short/full description, materials/care, visibility/status, retail/compare-at prices, inventory behaviour, variants, global/custom attributes, media/alt text, categories, collections, tags, The Ivy Edit/New Arrivals/Featured flags, SEO/social metadata, shipping information, reviews, purchase note and custom metadata.
+5. The **ZQ** tab retains supplier product/SKU/spec mappings and supports selective synchronization of inventory, supplier cost, weight, supplier status and additional supplier images.
+6. ZQ synchronization never overwrites Ivy & Pearls title, copy, retail prices, taxonomy, SEO, gallery order or customer-facing attributes.
+
+Apply `supabase/migrations/003_product_merchandising.sql` after the base commerce migrations. The bundled `scripts/setup-supabase.ps1` now applies it automatically and is safe to re-run.
+
+### Supplier-owned fields
+
+- ZQ product ID / SKU / spec ID
+- supplier raw payload/status
+- supplier cost (when enabled)
+- inventory / locked / in-transit (when enabled)
+- weight (when enabled)
+- optional newly discovered supplier images
+
+### Ivy & Pearls-owned fields
+
+- title / slug / descriptions
+- retail and compare-at pricing
+- categories / collections / tags
+- visible attributes / variant naming
+- imagery order / alt text / primary image
+- SEO title / description / canonical / robots / OG content
+- merchandising flags and storefront visibility
+
+This split lets products stay fulfilment-safe and syncable while the public presentation remains entirely controlled by Ivy & Pearls.

@@ -2,8 +2,8 @@ import { supabaseAdmin } from '../lib/supabase.js';
 
 const PRODUCT_SELECT = `
   id, slug, title, subtitle, description, short_description, category, collection,
-  status, featured, ivy_edit, new_arrival, seo_title, seo_description,
-  material_summary, care, origin_note, published_at, created_at, updated_at,
+  status, visibility, featured, ivy_edit, new_arrival, seo_title, seo_description, canonical_url, og_title, og_description, og_image_url, meta_robots, tags,
+  material_summary, care, origin_note, country_of_origin, lead_time, dimensions, reviews_enabled, published_at, created_at, updated_at,
   product_variants(
     id, sku, zq_sku, zq_product_id, zq_spec_id, title, attributes,
     price_minor, compare_at_minor, cost_minor, currency, weight_kg,
@@ -33,7 +33,7 @@ function normalize(product) {
 
 export async function listProducts({ category, collection, ivyEdit, newArrival, featured, search, limit=24, offset=0 }={}) {
   const db = supabaseAdmin();
-  let q = db.from('products').select(PRODUCT_SELECT).eq('status','active')
+  let q = db.from('products').select(PRODUCT_SELECT).eq('status','active').neq('visibility','hidden')
     .order('published_at', { ascending:false, nullsFirst:false })
     .range(offset, offset + Math.min(limit,60) - 1);
   if (category) q=q.eq('category',category);
@@ -96,8 +96,8 @@ export async function sitemapRecords() {
 export async function syncZqInventory(zqClient) {
   const db=supabaseAdmin();
   const {data:variants,error}=await db.from('product_variants')
-    .select('id,zq_sku,inventory_quantity,inventory_locked,inventory_in_transit')
-    .eq('active',true).limit(300);
+    .select('id,zq_sku,inventory_quantity,inventory_locked,inventory_in_transit,products!inner(sync_inventory)')
+    .eq('active',true).eq('products.sync_inventory',true).limit(300);
   if(error) throw error;
   const results=[];
   for(const v of variants||[]){
