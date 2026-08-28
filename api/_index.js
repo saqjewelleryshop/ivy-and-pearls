@@ -131,16 +131,8 @@ app.use((err, req, res, next) => {
   else res.status(status).send(message);
 });
 
-// Vercel serverless handler - must be default export
+// Vercel serverless handler
 export default async (req, res) => {
-  return new Promise((resolve) => {
-    // Intercept res methods to handle promise-based response
-    const oldEnd = res.end.bind(res);
-    res.end = function(...args) {
-      oldEnd(...args);
-      resolve();
-    };
-    
-    app(req, res);
-  });
+  // Let Express handle the request naturally
+  app(req, res);
 };
