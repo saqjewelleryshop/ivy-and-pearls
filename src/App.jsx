@@ -27,37 +27,47 @@ import Terms from './pages/Terms';
 import Cookies from './pages/Cookies';
 import Accessibility from './pages/Accessibility';
 import Admin from './pages/Admin';
+import Wishlist from './pages/Wshlist';
 import NotFound from './pages/NotFound';
+import ScrollToTop from './components/ScrollToTop';
 
-export default function App(){return <Layout><Routes>
- <Route path="/" element={<Home/>}/>
- <Route path="/shop/" element={<Shop/>}/>
- <Route path="/collections/" element={<Collections/>}/>
- <Route path="/collections/:slug/" element={<Collection/>}/>
- <Route path="/new-arrivals/" element={<Shop mode="new"/>}/>
- <Route path="/the-ivy-edit/" element={<Shop mode="ivy"/>}/>
- <Route path="/most-loved/" element={<Shop mode="ivy"/>}/>
- <Route path="/admin/preview/product/:slug/" element={<ProductPreview/>}/>
- <Route path="/product/:slug/" element={<Product/>}/>
- <Route path="/checkout/" element={<Checkout/>}/>
- <Route path="/order-confirmed/" element={<OrderConfirmed/>}/>
- <Route path="/login/" element={<Login/>}/>
- <Route path="/register/" element={<Register/>}/>
- <Route path="/forgot-password/" element={<ForgotPassword/>}/>
- <Route path="/reset-password/" element={<ResetPassword/>}/>
- <Route path="/account/" element={<Account/>}/>
- <Route path="/account/addresses/" element={<Addresses/>}/>
- <Route path="/account/orders/:orderNumber/" element={<OrderDetail/>}/>
- <Route path="/our-story/" element={<OurStory/>}/>
- <Route path="/journal/" element={<Journal/>}/>
- <Route path="/journal/:slug/" element={<JournalPost/>}/>
- <Route path="/contact/" element={<Contact/>}/>
- <Route path="/delivery-returns/" element={<DeliveryReturns/>}/>
- <Route path="/faqs/" element={<Faqs/>}/>
- <Route path="/privacy-policy/" element={<Privacy/>}/>
- <Route path="/terms/" element={<Terms/>}/>
- <Route path="/cookies/" element={<Cookies/>}/>
- <Route path="/accessibility/" element={<Accessibility/>}/>
- <Route path="/admin/" element={<Admin/>}/>
- <Route path="*" element={<NotFound/>}/>
-</Routes></Layout>}
+export default function App(){
+    return (
+    <Layout>
+        <ScrollToTop/>
+        <Routes>
+            <Route path="/" element={<Home/>}/>
+            <Route path="/shop/" element={<Shop/>}/>
+            <Route path="/collections/" element={<Collections/>}/>
+            <Route path="/collections/:slug/" element={<Collection/>}/>
+            <Route path="/new-arrivals/" element={<Shop mode="new"/>}/>
+            <Route path="/the-ivy-edit/" element={<Shop mode="ivy"/>}/>
+            <Route path="/most-loved/" element={<Shop mode="ivy"/>}/>
+            <Route path="/admin/preview/product/:slug/" element={<ProductPreview/>}/>
+            <Route path="/product/:slug/" element={<Product/>}/>
+            <Route path="/checkout/" element={<Checkout/>}/>
+            <Route path="/order-confirmed/" element={<OrderConfirmed/>}/>
+            <Route path="/login/" element={<Login/>}/>
+            <Route path="/register/" element={<Register/>}/>
+            <Route path="/forgot-password/" element={<ForgotPassword/>}/>
+            <Route path="/reset-password/" element={<ResetPassword/>}/>
+            <Route path="/account/" element={<Account/>}/>
+            <Route path="/account/addresses/" element={<Addresses/>}/>
+            <Route path="/account/orders/:orderNumber/" element={<OrderDetail/>}/>
+            <Route path="/our-story/" element={<OurStory/>}/>
+            <Route path="/journal/" element={<Journal/>}/>
+            <Route path="/journal/:slug/" element={<JournalPost/>}/>
+            <Route path="/contact/" element={<Contact/>}/>
+            <Route path="/delivery-returns/" element={<DeliveryReturns/>}/>
+            <Route path="/faqs/" element={<Faqs/>}/>
+            <Route path="/privacy-policy/" element={<Privacy/>}/>
+            <Route path="/terms/" element={<Terms/>}/>
+            <Route path="/cookies/" element={<Cookies/>}/>
+            <Route path="/accessibility/" element={<Accessibility/>}/>
+            <Route path="/admin/" element={<Admin/>}/>
+            <Route path="/wishlist/" element={<Wishlist/>}/>
+            <Route path="*" element={<NotFound/>}/>
+        </Routes>
+    </Layout>
+    );
+}

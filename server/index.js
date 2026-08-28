@@ -9,7 +9,7 @@ import { securityHeaders, apiLimiter } from './middleware/security.js';
 import apiRouter from './routes/api.js';
 import webhookRouter from './routes/webhooks.js';
 import { listProducts, getProductBySlug, listJournal, getJournalPost, sitemapRecords } from './services/catalog.js';
-import { hasSupabase } from './lib/supabase.js';
+import { hasSupabase, supabaseAdmin } from './lib/supabase.js';
 
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(__dirname,'..');
@@ -22,6 +22,27 @@ app.use(compression());
 app.use(cookieParser());
 
 app.use('/api/webhooks',express.raw({type:'application/json',limit:'1mb'}),webhookRouter);
+
+// Short branded media URLs: /media/:filename → Supabase public URL
+app.get('/media/:filename',async(req,res,next)=>{
+  try{
+    const filename=String(req.params.filename||'');
+    if(!filename||filename.includes('/')||filename.includes('\\')||filename.includes('..')){
+      return res.status(400).send('Invalid media filename.');
+    }
+    const db=supabaseAdmin();
+    const storagePath=`media-library/${filename}`;
+    const {data}=db.storage.from('product-media').getPublicUrl(storagePath);
+    const publicUrl=data?.publicUrl;
+    if(!publicUrl){
+      return res.status(404).send('Media not found.');
+    }
+    return res.redirect(302,publicUrl);
+  }catch(error){
+    next(error);
+  }
+});
+
 app.use('/api',apiLimiter,express.json({limit:'500kb'}),apiRouter);
 
 app.get('/robots.txt',(req,res)=>{
