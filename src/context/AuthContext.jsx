@@ -6,7 +6,7 @@ const C=createContext({user:null,session:null,loading:true});
 export function AuthProvider({children}){
   const sb=useMemo(()=>supabaseBrowser(),[]);
   const [session,setSession]=useState(null);
-  const [loading,setLoading]=useState(Boolean(sb));
+  const [loading,setLoading]=useState(true);
   useEffect(()=>{
     if(!sb){setLoading(false);return;}
     sb.auth.getSession().then(({data})=>{setSession(data.session||null);setLoading(false);});
