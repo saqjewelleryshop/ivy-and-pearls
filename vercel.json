@@ -1,25 +1,15 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "outputDirectory": "dist/client",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "regions": ["iad1"],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/_index.js"
-    },
-    {
-      "src": "/media/(.*)",
-      "dest": "/api/_index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/_index.js"
+  "functions": {
+    "api/_index.js": {
+      "runtime": "nodejs22.x"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index"
+    }
+  ]
 }
