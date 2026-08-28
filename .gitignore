@@ -7,3 +7,16 @@ dist/
 *.log
 coverage/
 .lighthouseci/
+
+# Test files
+test-*.js
+test-*.mjs
+test-image.png
+
+# Migration files
+apply-migration.mjs
+run-migration.mjs
+
+# Scripts
+supabase/functions/
+
