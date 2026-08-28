@@ -7,15 +7,11 @@
   "regions": ["iad1"],
   "routes": [
     {
-      "src": "/api/webhooks/(.*)",
+      "src": "/api/(.*)",
       "dest": "/api/_index.js"
     },
     {
       "src": "/media/(.*)",
-      "dest": "/api/_index.js"
-    },
-    {
-      "src": "/api/(.*)",
       "dest": "/api/_index.js"
     },
     {

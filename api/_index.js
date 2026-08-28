@@ -131,13 +131,16 @@ app.use((err, req, res, next) => {
   else res.status(status).send(message);
 });
 
-// Vercel serverless handler
+// Vercel serverless handler - must be default export
 export default async (req, res) => {
-  // Handle webhook separately for raw body
-  if (req.url?.startsWith('/api/webhooks')) {
-    return app(req, res);
-  }
-  
-  // For all other routes, use standard Express handler
-  app(req, res);
+  return new Promise((resolve) => {
+    // Intercept res methods to handle promise-based response
+    const oldEnd = res.end.bind(res);
+    res.end = function(...args) {
+      oldEnd(...args);
+      resolve();
+    };
+    
+    app(req, res);
+  });
 };
