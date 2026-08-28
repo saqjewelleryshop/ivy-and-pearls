@@ -9,9 +9,30 @@ import apiRouter from '../server/routes/api.js';
 import webhookRouter from '../server/routes/webhooks.js';
 import { listProducts, getProductBySlug, listJournal, getJournalPost, sitemapRecords } from '../server/services/catalog.js';
 import { hasSupabase, supabaseAdmin } from '../server/lib/supabase.js';
+import { createRequire } from 'node:module';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const require = createRequire(import.meta.url);
+
+// Cache template and renderer
+let cachedTemplate = null;
+let cachedRender = null;
+
+async function getRenderer() {
+  if (cachedTemplate && cachedRender) {
+    return { template: cachedTemplate, render: cachedRender };
+  }
+  
+  const fs = await import('node:fs');
+  const template = await fs.promises.readFile(path.join(root, 'dist/client/index.html'), 'utf8');
+  const { render } = await import(path.join(root, 'dist/server/entry-server.js'));
+  
+  cachedTemplate = template;
+  cachedRender = render;
+  
+  return { template, render };
+}
 
 // Create Express app for function
 const app = express();
@@ -74,7 +95,7 @@ app.get('/sitemap.xml', async (req, res, next) => {
 // SSR handler
 async function bootstrapForUrl(url) {
   if (!hasSupabase()) return { configurationPending: true };
-  const u = new URL(url, 'https://ivyandpearls.co.uk');
+  const u = new URL(url, process.env.SITE_URL || 'https://ivyandpearls.co.uk');
   const p = u.pathname;
   if (p === '/') {
     const products = await listProducts({ limit: 16 });
@@ -96,15 +117,14 @@ async function bootstrapForUrl(url) {
 app.use(async (req, res, next) => {
   try {
     const url = req.originalUrl;
+    console.log('[SSR] Request:', url);
+    
     const data = await bootstrapForUrl(url).catch(e => {
-      console.error('SSR bootstrap error', e);
-      return { ssrError: true };
+      console.error('[SSR] Bootstrap error', e);
+      return { ssrError: true, error: e.message };
     });
     
-    // Load template and renderer from dist
-    const fs = await import('node:fs');
-    const template = await fs.promises.readFile(path.join(root, 'dist/client/index.html'), 'utf8');
-    const { render } = await import(path.join(root, 'dist/server/entry-server.js'));
+    const { template, render } = await getRenderer();
     
     const result = render(url, data);
     const helmet = result.helmet;
@@ -116,23 +136,31 @@ app.use(async (req, res, next) => {
     ].join('');
     const bootstrap = `<script>window.__IVY_BOOTSTRAP__=${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
     const out = template.replace('<!--app-head-->', head).replace('<!--app-html-->', result.html).replace('<!--bootstrap-->', bootstrap);
+    
+    console.log('[SSR] Sending response, status:', result.status || 200);
     res.status(result.status || 200).type('html').send(out);
   } catch (e) {
+    console.error('[SSR] Error:', e);
     next(e);
   }
 });
 
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error('[Error]', err);
   if (res.headersSent) return next(err);
   const status = err.status || (['ZodError'].includes(err.name) ? 400 : 500);
   const message = status >= 500 ? 'Something went wrong. Please try again.' : err.message;
-  if (req.path.startsWith('/api/')) res.status(status).json({ error: message });
-  else res.status(status).send(message);
+  if (req.path.startsWith('/api/')) {
+    res.status(status).json({ error: message });
+  } else {
+    res.status(status).send(message);
+  }
 });
 
 // Vercel serverless handler
 export default async (req, res) => {
-  // Let Express handle the request naturally
+  console.log('[Vercel] Incoming request:', req.method, req.url);
+  
+  // Handle the request using Express
   app(req, res);
 };
