@@ -1,4 +1,7 @@
 import 'dotenv/config';
+import {validateProductionEnv} from './lib/env.js';
+import {requestId,log,requestContext} from './lib/logger.js';
+import {STATIC_SITEMAP_PAGES,KNOWN_STATIC_ROUTES,LEGACY_REDIRECTS,isKnownDynamicRoute} from './lib/site-routes.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import express from 'express';
@@ -14,12 +17,15 @@ import { hasSupabase, supabaseAdmin } from './lib/supabase.js';
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(__dirname,'..');
 const isProd=process.env.NODE_ENV==='production';
+validateProductionEnv();
 const app=express();
+app.use(requestId);
 app.disable('x-powered-by');
 app.set('trust proxy',1);
 app.use(securityHeaders);
 app.use(compression());
 app.use(cookieParser());
+app.use((req,res,next)=>{const started=Date.now();res.on('finish',()=>log('info','request.completed',{...requestContext(req),status:res.statusCode,durationMs:Date.now()-started}));next();});
 app.use((req,res,next)=>{
   // Preview deployments should never compete with the canonical .co.uk domain.
   if(String(req.hostname||'').endsWith('.vercel.app')){
@@ -28,16 +34,7 @@ app.use((req,res,next)=>{
   next();
 });
 
-const legacyRedirects=new Map([
-  ['/terms-conditions/','/terms/'],
-  ['/terms-and-conditions/','/terms/'],
-  ['/shipping-returns/','/delivery-returns/'],
-  ['/shipping-and-returns/','/delivery-returns/'],
-  ['/returns-refunds/','/delivery-returns/'],
-  ['/returns/','/delivery-returns/'],
-  ['/about-us/','/our-story/'],
-  ['/contact-us/','/contact/']
-]);
+const legacyRedirects=LEGACY_REDIRECTS;
 
 app.use((req,res,next)=>{
   const direct=legacyRedirects.get(req.path);
@@ -71,25 +68,33 @@ app.get('/media/:filename',async(req,res,next)=>{
 
 app.use('/api',apiLimiter,express.json({limit:'500kb'}),apiRouter);
 
+app.get('/healthz',(req,res)=>res.status(200).json({status:'ok'}));
+app.get('/readyz',(req,res)=>res.status(200).json({status:'ready',supabase:hasSupabase()}));
+
 app.get('/robots.txt',(req,res)=>{
   const site=(process.env.SITE_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /wishlist/\nDisallow: /search/\nDisallow: /login/\nDisallow: /register/\nDisallow: /forgot-password/\nDisallow: /reset-password/\nDisallow: /order-confirmed/\nDisallow: /api/\nSitemap: ${site}/sitemap.xml\n`);
+  res.set('Cache-Control','public, max-age=3600').type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /wishlist/\nDisallow: /search/\nDisallow: /login/\nDisallow: /register/\nDisallow: /forgot-password/\nDisallow: /reset-password/\nDisallow: /order-confirmed/\nDisallow: /api/\nSitemap: ${site}/sitemap.xml\n`);
+});
+
+app.get('/.well-known/security.txt',(req,res)=>{
+  const site=(process.env.SITE_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
+  res.type('text/plain').set('Cache-Control','public, max-age=86400').send(`Contact: mailto:clientcare@ivyandpearls.co.uk\nPreferred-Languages: en\nCanonical: ${site}/.well-known/security.txt\nPolicy: ${site}/security/\n`);
 });
 
 app.get('/sitemap.xml',async(req,res,next)=>{
   try{
     const site=(process.env.SITE_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
-    const staticPages=['/','/shop/','/collections/','/collections/rings/','/collections/necklaces/','/collections/earrings/','/collections/bracelets/','/new-arrivals/','/the-ivy-edit/','/our-story/','/journal/','/contact/','/delivery-returns/','/faqs/','/privacy-policy/','/terms/','/cookies/','/accessibility/'];
+    const staticPages=STATIC_SITEMAP_PAGES;
     let records={products:[],posts:[]};
     if(hasSupabase()) records=await sitemapRecords();
     const urls=[
-      ...staticPages.map(loc=>({loc,lastmod:new Date().toISOString()})),
+      ...staticPages.map(loc=>({loc})),
       ...records.products.map(p=>({loc:`/product/${p.slug}/`,lastmod:p.updated_at})),
       ...records.posts.map(p=>({loc:`/journal/${p.slug}/`,lastmod:p.updated_at})),
       ...['the-art-of-everyday-jewellery','how-to-layer-with-restraint','caring-for-the-pieces-you-wear-most'].filter(slug=>!records.posts.some(p=>p.slug===slug)).map(slug=>({loc:`/journal/${slug}/`,lastmod:'2026-09-03T00:00:00Z'}))
     ];
-    const xml=`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u=>`  <url><loc>${site}${u.loc}</loc><lastmod>${new Date(u.lastmod).toISOString()}</lastmod></url>`).join('\n')}\n</urlset>`;
-    res.type('application/xml').send(xml);
+    const xml=`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u=>`  <url><loc>${site}${u.loc}</loc>${u.lastmod?`<lastmod>${new Date(u.lastmod).toISOString()}</lastmod>`:''}</url>`).join('\n')}\n</urlset>`;
+    res.set('Cache-Control','public, max-age=3600, stale-while-revalidate=86400').type('application/xml').send(xml);
   }catch(e){next(e);}
 });
 
@@ -120,10 +125,7 @@ async function bootstrapForUrl(url){
     if(['the-art-of-everyday-jewellery','how-to-layer-with-restraint','caring-for-the-pieces-you-wear-most'].includes(post[1]))return {};
     return {notFound:true};
   }
-
-  const exactKnown=new Set(['/collections/','/checkout/','/order-confirmed/','/login/','/register/','/forgot-password/','/reset-password/','/account/','/account/addresses/','/our-story/','/contact/','/delivery-returns/','/faqs/','/privacy-policy/','/terms/','/cookies/','/accessibility/','/admin/','/wishlist/','/search/']);
-  const dynamicKnown=/^\/account\/orders\/[^/]+\/$/.test(p)||/^\/admin\/preview\/product\/[^/]+\/$/.test(p);
-  return exactKnown.has(p)||dynamicKnown?{}:{notFound:true};
+  return KNOWN_STATIC_ROUTES.has(p)||isKnownDynamicRoute(p)?{}:{notFound:true};
 }
 
 let vite;

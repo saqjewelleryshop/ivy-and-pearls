@@ -9,6 +9,7 @@ import { sendEmail } from '../services/email.js';
 import sanitizeHtml from 'sanitize-html';
 import multer from 'multer';
 import crypto from 'crypto';
+import {isAllowedImage} from '../lib/file-signature.js';
 
 const router=Router();
 
@@ -1888,6 +1889,12 @@ router.post(
       if(!req.file){
         return res.status(400).json({
           error:'Choose an image to upload.'
+        });
+      }
+
+      if(!isAllowedImage(req.file.buffer,req.file.mimetype)){
+        return res.status(400).json({
+          error:'The uploaded file content does not match a supported JPG, PNG or WebP image.'
         });
       }
 

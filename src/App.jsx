@@ -7,7 +7,6 @@ import Collections from './pages/Collections';
 import Collection from './pages/Collection';
 import Product from './pages/Product';
 import ProductPreview from './pages/ProductPreview';
-import Checkout from './pages/Checkout';
 import OrderConfirmed from './pages/OrderConfirmed';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -26,11 +25,19 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import Cookies from './pages/Cookies';
 import Accessibility from './pages/Accessibility';
-import Admin from './pages/Admin';
 import Wishlist from './pages/Wishlist';
 import Search from './pages/Search';
 import NotFound from './pages/NotFound';
 import ScrollToTop from './components/ScrollToTop';
+const Checkout=React.lazy(()=>import('./pages/Checkout'));
+const Admin=React.lazy(()=>import('./pages/Admin'));
+function Deferred({children}){return <React.Suspense fallback={<section className="loading-page" aria-live="polite">Loading…</section>}>{children}</React.Suspense>}
+import SizeGuide from './pages/SizeGuide';
+import JewelleryCare from './pages/JewelleryCare';
+import Materials from './pages/Materials';
+import PrivateClient from './pages/PrivateClient';
+import Security from './pages/Security';
+
 
 export default function App(){
     return (
@@ -46,7 +53,7 @@ export default function App(){
             <Route path="/most-loved/" element={<Shop mode="ivy"/>}/>
             <Route path="/admin/preview/product/:slug/" element={<ProductPreview/>}/>
             <Route path="/product/:slug/" element={<Product/>}/>
-            <Route path="/checkout/" element={<Checkout/>}/>
+            <Route path="/checkout/" element={<Deferred><Checkout/></Deferred>}/>
             <Route path="/order-confirmed/" element={<OrderConfirmed/>}/>
             <Route path="/login/" element={<Login/>}/>
             <Route path="/register/" element={<Register/>}/>
@@ -65,7 +72,12 @@ export default function App(){
             <Route path="/terms/" element={<Terms/>}/>
             <Route path="/cookies/" element={<Cookies/>}/>
             <Route path="/accessibility/" element={<Accessibility/>}/>
-            <Route path="/admin/" element={<Admin/>}/>
+            <Route path="/size-guide/" element={<SizeGuide/>}/>
+            <Route path="/jewellery-care/" element={<JewelleryCare/>}/>
+            <Route path="/materials/" element={<Materials/>}/>
+            <Route path="/private-client/" element={<PrivateClient/>}/>
+            <Route path="/security/" element={<Security/>}/>
+            <Route path="/admin/" element={<Deferred><Admin/></Deferred>}/>
             <Route path="/wishlist/" element={<Wishlist/>}/>
             <Route path="/search/" element={<Search/>}/>
             <Route path="*" element={<NotFound/>}/>

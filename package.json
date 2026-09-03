@@ -11,7 +11,10 @@
     "start": "NODE_ENV=production node server/index.js",
     "check": "node --check server/index.js && node --check server/lib/zq.js && node --check server/lib/supabase.js && node --check server/routes/api.js && node --check server/routes/webhooks.js && node --check server/services/orders.js && node --check server/services/stripe-products.js",
     "audit:seo": "node scripts/seo-audit.mjs",
-    "audit:lighthouse": "lhci autorun"
+    "audit:lighthouse": "lhci autorun",
+    "test": "node --test tests/unit/*.test.mjs",
+    "quality": "npm run check && npm run test && npm run audit:source && npm run audit:seo && npm run build",
+    "audit:source": "node scripts/source-audit.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^3.7.0",

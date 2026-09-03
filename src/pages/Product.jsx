@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Link,useParams} from 'react-router-dom';
 import Seo from '../components/Seo';
 import NotFound from './NotFound';
@@ -25,6 +25,8 @@ export default function Product(){
   const [qty,setQty]=useState(1);
   const [activeImage,setActiveImage]=useState(0);
   const [manualImage,setManualImage]=useState(false);
+  const [lightbox,setLightbox]=useState(false);
+  const touchStartX=useRef(null);
 
   useEffect(()=>{
     if(!product&&!boot.notFound){
@@ -312,7 +314,7 @@ export default function Product(){
 
           <div className="luxury-gallery">
 
-            <div className="luxury-gallery__main">
+            <div className="luxury-gallery__main" onTouchStart={e=>{touchStartX.current=e.changedTouches?.[0]?.clientX??null;}} onTouchEnd={e=>{if(touchStartX.current==null)return;const delta=(e.changedTouches?.[0]?.clientX??touchStartX.current)-touchStartX.current;if(Math.abs(delta)>45)moveGallery(delta<0?1:-1);touchStartX.current=null;}}>
 
               {galleryImages.length>1&&(<button type="button" className="luxury-gallery__arrow luxury-gallery__arrow--prev" aria-label="Previous product image" onClick={()=>moveGallery(-1)}><span aria-hidden="true">‹</span></button>)}
 
@@ -337,6 +339,8 @@ export default function Product(){
                     }
 
                     loading="eager"
+                    onClick={()=>setLightbox(true)}
+                    className="luxury-gallery__hero-image"
                   />
                 )
                 : (
@@ -347,6 +351,7 @@ export default function Product(){
               {galleryImages.length>1&&(<button type="button" className="luxury-gallery__arrow luxury-gallery__arrow--next" aria-label="Next product image" onClick={()=>moveGallery(1)}><span aria-hidden="true">›</span></button>)}
 
               {galleryImages.length>1&&(<div className="luxury-gallery__count" aria-live="polite">{displayedIndex+1} / {galleryImages.length}</div>)}
+              {image&&<button type="button" className="luxury-gallery__zoom" onClick={()=>setLightbox(true)} aria-label="Open full-screen image">⌕</button>}
 
             </div>
 
@@ -391,6 +396,8 @@ export default function Product(){
             )}
 
           </div>
+
+          {lightbox&&image&&<div className="product-lightbox" role="dialog" aria-modal="true" aria-label={`${product.title} image viewer`} onClick={()=>setLightbox(false)}><button type="button" className="product-lightbox__close" aria-label="Close image viewer" onClick={()=>setLightbox(false)}>×</button>{galleryImages.length>1&&<button type="button" className="product-lightbox__nav product-lightbox__nav--prev" aria-label="Previous image" onClick={e=>{e.stopPropagation();moveGallery(-1)}}>‹</button>}<img src={image.url} alt={image.alt_text||product.title} onClick={e=>e.stopPropagation()}/>{galleryImages.length>1&&<button type="button" className="product-lightbox__nav product-lightbox__nav--next" aria-label="Next image" onClick={e=>{e.stopPropagation();moveGallery(1)}}>›</button>}</div>}
 
 
           {/* ===================================================
@@ -530,6 +537,8 @@ export default function Product(){
 
               )}
 
+
+              <div className="luxury-sizing-link"><Link to="/size-guide/">Need help choosing a size? <span>View the size guide →</span></Link></div>
 
               {/* ===============================================
                   STOCK
