@@ -107,6 +107,20 @@ app.get('/sitemap.xml', async (req, res, next) => {
   }
 });
 
+// Client-side config endpoint — exposes only frontend-safe env vars
+app.get('/api/config', (req, res) => {
+  const config = {
+    supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+    supabaseKey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
+    siteUrl: process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.FRONTEND_URL,
+  };
+  // Reject if critical client config is missing
+  if (!config.supabaseUrl || !config.supabaseKey) {
+    return res.status(503).json({ error: 'Client configuration incomplete', issues: envStatus.issues });
+  }
+  return res.status(200).json(config);
+});
+
 // Storefront pages are served by Vercel's static Vite output.
 // This function intentionally handles APIs and machine-readable endpoints only.
 app.use((req,res,next)=>{

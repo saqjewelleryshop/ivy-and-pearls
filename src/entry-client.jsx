@@ -9,6 +9,19 @@ import {CartProvider} from './context/CartContext';
 import {AuthProvider} from './context/AuthContext';
 import './styles/global.css';
 
+// Runtime config injection — fetched from /api/config if not present
+(async () => {
+  if (!window.__IVY_CLIENT_CONFIG__) {
+    try {
+      const r = await fetch('/api/config');
+      if (r.ok) window.__IVY_CLIENT_CONFIG__ = await r.json();
+    } catch {}
+  }
+  // Bootstrap after config is ready (or timeout)
+  setTimeout(() => mountApp(), 0);
+})();
+
+function mountApp() {
 const rootElement=document.getElementById('root');
 const bootstrap=window.__IVY_BOOTSTRAP__||{};
 const app=(
@@ -34,4 +47,5 @@ if(rootElement.hasChildNodes()){
   hydrateRoot(rootElement,app);
 }else{
   createRoot(rootElement).render(app);
+}
 }
