@@ -94,8 +94,8 @@ app.get('/media/:filename', async (req, res, next) => {
 app.use('/api', apiLimiter, express.json({ limit: '500kb' }), apiRouter);
 
 // Static files (robots.txt, sitemap.xml)
-app.get('/healthz',(req,res)=>res.status(200).json({status:'ok'}));
-app.get('/readyz',async(req,res)=>{
+app.get('/api/healthz',(req,res)=>res.status(200).json({status:'ok'}));
+app.get('/api/readyz',async(req,res)=>{
   const ready=hasSupabase();
   let ssrArtifacts=false;
   try{
