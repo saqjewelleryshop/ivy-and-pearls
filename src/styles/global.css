@@ -4777,3 +4777,15 @@
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   .luxury-reveal{opacity:1!important;transform:none!important}
 }
+
+/* Product gallery carousel controls */
+.luxury-gallery__main{position:relative}
+.luxury-gallery__arrow{position:absolute;top:50%;z-index:3;display:grid;place-items:center;width:46px;height:46px;border:1px solid rgba(17,17,17,.16);border-radius:50%;background:rgba(255,255,255,.9);color:var(--ink);cursor:pointer;transform:translateY(-50%);box-shadow:0 5px 24px rgba(0,0,0,.08);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background .2s ease,border-color .2s ease,transform .2s ease,opacity .2s ease}
+.luxury-gallery__arrow span{font:300 32px/1 Arial,sans-serif;transform:translateY(-1px)}
+.luxury-gallery__arrow--prev{left:18px}
+.luxury-gallery__arrow--next{right:18px}
+.luxury-gallery__arrow:hover{background:#fff;border-color:rgba(169,130,67,.6);transform:translateY(-50%) scale(1.04)}
+.luxury-gallery__arrow:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.luxury-gallery__count{position:absolute;right:18px;bottom:16px;z-index:2;padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.82);font-size:9px;letter-spacing:.14em;color:var(--ink);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+@media (max-width:700px){.luxury-gallery__arrow{width:40px;height:40px}.luxury-gallery__arrow--prev{left:12px}.luxury-gallery__arrow--next{right:12px}.luxury-gallery__count{right:12px;bottom:12px}}
+@media (prefers-reduced-motion:reduce){.luxury-gallery__arrow{transition:none}}

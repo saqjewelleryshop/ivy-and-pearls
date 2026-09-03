@@ -7,8 +7,7 @@ import {HOME} from '../lib/content';
 export default function CinematicHero(){
  const ref=useRef(null);
  useLayoutEffect(()=>{
-  if(typeof window==='undefined')return;
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  if(typeof window==='undefined'||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   gsap.registerPlugin(ScrollTrigger);
   const hero=ref.current;if(!hero)return;
   const ctx=gsap.context(()=>{

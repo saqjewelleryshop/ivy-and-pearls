@@ -5,8 +5,7 @@ export const SITE={
   company:'Ivy and Pearls Ltd',
   companyNumber:'17387520',
   currency:'GBP',
-  delivery:'Complimentary UK delivery Â· Estimated 7â€“14 working days',
-  copyright:'Â© 2026 Ivy and Pearls Ltd. Registered in England & Wales Â· Company no. 17387520.'
+  delivery:'Complimentary UK delivery · Estimated 7–14 working days'
 };
 
 export const NAV=[

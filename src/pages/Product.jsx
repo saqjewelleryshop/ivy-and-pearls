@@ -89,6 +89,20 @@ export default function Product(){
 
   const images=product.images||[];
 
+  const galleryImages=(()=>{
+    const variantEntry=variantImage
+      ? {
+          id:`variant-${variant?.id}`,
+          url:variantImage,
+          alt_text:`${product.title} - ${variant?.title||'variant'}`
+        }
+      : null;
+
+    return variantEntry
+      ? [variantEntry,...images.filter(item=>item?.url&&item.url!==variantImage)]
+      : images;
+  })();
+
   const attributes=product.attributes||[];
 
   const displayAttributes=attributes.filter(
@@ -98,16 +112,28 @@ export default function Product(){
      attribute.values.length>0
   );
 
-  const image=
-  !manualImage && variantImage
-    ? {
-        id:`variant-${variant?.id}`,
-        url:variantImage,
-        alt_text:
-          `${product.title} - ${variant?.title||'variant'}`
-      }
-    : images[activeImage]||
-      images[0];
+  const displayedIndex=
+    !manualImage && variantImage
+      ? 0
+      : variantImage
+        ? Math.min(activeImage+1,Math.max(galleryImages.length-1,0))
+        : Math.min(activeImage,Math.max(galleryImages.length-1,0));
+
+  const image=galleryImages[displayedIndex]||galleryImages[0];
+
+  const moveGallery=(direction)=>{
+    if(galleryImages.length<2)return;
+    const nextIndex=(displayedIndex+direction+galleryImages.length)%galleryImages.length;
+
+    if(variantImage&&nextIndex===0){
+      setActiveImage(0);
+      setManualImage(false);
+      return;
+    }
+
+    setActiveImage(variantImage?nextIndex-1:nextIndex);
+    setManualImage(true);
+  };
 
   
   const schemaImages=[...new Set([
@@ -288,6 +314,8 @@ export default function Product(){
 
             <div className="luxury-gallery__main">
 
+              {galleryImages.length>1&&(<button type="button" className="luxury-gallery__arrow luxury-gallery__arrow--prev" aria-label="Previous product image" onClick={()=>moveGallery(-1)}><span aria-hidden="true">‹</span></button>)}
+
               {image
                 ? (
                   <img
@@ -315,6 +343,10 @@ export default function Product(){
                   <div className="luxury-gallery__empty"/>
                 )
               }
+
+              {galleryImages.length>1&&(<button type="button" className="luxury-gallery__arrow luxury-gallery__arrow--next" aria-label="Next product image" onClick={()=>moveGallery(1)}><span aria-hidden="true">›</span></button>)}
+
+              {galleryImages.length>1&&(<div className="luxury-gallery__count" aria-live="polite">{displayedIndex+1} / {galleryImages.length}</div>)}
 
             </div>
 
