@@ -2,6 +2,15 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist/client",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": [
+        "dist/client/index.html",
+        "dist/server/**"
+      ],
+      "maxDuration": 30
+    }
+  },
   "routes": [
     {
       "src": "/assets/(.*)",

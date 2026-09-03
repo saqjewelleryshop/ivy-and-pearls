@@ -29,7 +29,8 @@ async function getRenderer() {
   
   const fs = await import('node:fs');
   const template = await fs.promises.readFile(path.join(root, 'dist/client/index.html'), 'utf8');
-  const { render } = await import(path.join(root, 'dist/server/entry-server.js'));
+  // Keep this import statically discoverable by Vercel's function tracer.
+  const { render } = await import('../dist/server/entry-server.js');
   
   cachedTemplate = template;
   cachedRender = render;
@@ -94,9 +95,20 @@ app.use('/api', apiLimiter, express.json({ limit: '500kb' }), apiRouter);
 
 // Static files (robots.txt, sitemap.xml)
 app.get('/healthz',(req,res)=>res.status(200).json({status:'ok'}));
-app.get('/readyz',(req,res)=>{
+app.get('/readyz',async(req,res)=>{
   const ready=hasSupabase();
-  return res.status(ready?200:503).json({status:ready?'ready':'configuration_required',supabase:ready,configuration:envStatus.ok?'ok':'incomplete'});
+  let ssrArtifacts=false;
+  try{
+    const fs=await import('node:fs');
+    ssrArtifacts=fs.existsSync(path.join(root,'dist/client/index.html'))&&fs.existsSync(path.join(root,'dist/server/entry-server.js'));
+  }catch{}
+  return res.status(ready&&ssrArtifacts?200:503).json({
+    status:ready&&ssrArtifacts?'ready':'configuration_required',
+    supabase:ready,
+    ssrArtifacts,
+    configuration:envStatus.ok?'ok':'incomplete',
+    configurationIssues:envStatus.issues
+  });
 });
 
 app.get('/robots.txt', (req, res) => {
@@ -168,21 +180,47 @@ app.use(async (req, res, next) => {
       return { ssrError: true, error: e.message };
     });
     
-    const { template, render } = await getRenderer();
-    
-    const result = render(url, data);
-    const helmet = result.helmet;
-    const head = [
-      helmet?.title?.toString() || '',
-      helmet?.meta?.toString() || '',
-      helmet?.link?.toString() || '',
-      helmet?.script?.toString() || ''
-    ].join('');
-    const bootstrap = `<script>window.__IVY_BOOTSTRAP__=${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
-    const out = template.replace('<!--app-head-->', head).replace('<!--app-html-->', result.html).replace('<!--bootstrap-->', bootstrap);
-    
-    console.log('[SSR] Sending response, status:', result.status || 200);
-    res.status(result.status || 200).type('html').send(out);
+    let template;
+    let render;
+    try{
+      ({template,render}=await getRenderer());
+    }catch(rendererError){
+      console.error('[SSR] Renderer artifacts unavailable; serving resilient client shell.',rendererError);
+      // dist/client/index.html is explicitly included in the Vercel function. If
+      // only the server renderer is unavailable, keep the storefront online by
+      // mounting the client app into an empty #root.
+      const fs=await import('node:fs');
+      template=await fs.promises.readFile(path.join(root,'dist/client/index.html'),'utf8');
+      const bootstrap=`<script>window.__IVY_BOOTSTRAP__=${JSON.stringify(data).replace(/</g,'\\u003c')}</script>`;
+      const shell=template
+        .replace('<!--app-head-->','')
+        .replace('<!--app-html-->','')
+        .replace('<!--bootstrap-->',bootstrap);
+      return res.status(data?.notFound?404:200).type('html').send(shell);
+    }
+
+    try{
+      const result=render(url,data);
+      const helmet=result.helmet;
+      const head=[
+        helmet?.title?.toString()||'',
+        helmet?.meta?.toString()||'',
+        helmet?.link?.toString()||'',
+        helmet?.script?.toString()||''
+      ].join('');
+      const bootstrap=`<script>window.__IVY_BOOTSTRAP__=${JSON.stringify(data).replace(/</g,'\\u003c')}</script>`;
+      const out=template.replace('<!--app-head-->',head).replace('<!--app-html-->',result.html).replace('<!--bootstrap-->',bootstrap);
+      console.log('[SSR] Sending response, status:',result.status||200);
+      return res.status(result.status||200).type('html').send(out);
+    }catch(renderError){
+      console.error('[SSR] Render failed; serving resilient client shell.',renderError);
+      const bootstrap=`<script>window.__IVY_BOOTSTRAP__=${JSON.stringify(data).replace(/</g,'\\u003c')}</script>`;
+      const shell=template
+        .replace('<!--app-head-->','')
+        .replace('<!--app-html-->','')
+        .replace('<!--bootstrap-->',bootstrap);
+      return res.status(data?.notFound?404:200).type('html').send(shell);
+    }
   } catch (e) {
     console.error('[SSR] Error:', e);
     next(e);
