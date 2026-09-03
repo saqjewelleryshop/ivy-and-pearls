@@ -38,7 +38,10 @@ async function getRenderer() {
 }
 
 // Create Express app for function
-validateProductionEnv();
+const envStatus=validateProductionEnv();
+if(!envStatus.ok){
+  console.warn('[config] Production configuration issues:', envStatus.issues.join('; '));
+}
 const app = express();
 app.use(requestId);
 app.disable('x-powered-by');
@@ -91,21 +94,24 @@ app.use('/api', apiLimiter, express.json({ limit: '500kb' }), apiRouter);
 
 // Static files (robots.txt, sitemap.xml)
 app.get('/healthz',(req,res)=>res.status(200).json({status:'ok'}));
-app.get('/readyz',(req,res)=>res.status(200).json({status:'ready',supabase:hasSupabase()}));
+app.get('/readyz',(req,res)=>{
+  const ready=hasSupabase();
+  return res.status(ready?200:503).json({status:ready?'ready':'configuration_required',supabase:ready,configuration:envStatus.ok?'ok':'incomplete'});
+});
 
 app.get('/robots.txt', (req, res) => {
-  const site = (process.env.SITE_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
+  const site = (process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.FRONTEND_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
   res.set('Cache-Control','public, max-age=3600').type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /wishlist/\nDisallow: /search/\nDisallow: /login/\nDisallow: /register/\nDisallow: /forgot-password/\nDisallow: /reset-password/\nDisallow: /order-confirmed/\nDisallow: /api/\nSitemap: ${site}/sitemap.xml\n`);
 });
 
 app.get('/.well-known/security.txt',(req,res)=>{
-  const site=(process.env.SITE_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
+  const site=(process.env.SITE_URL||process.env.VITE_SITE_URL||process.env.FRONTEND_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
   res.type('text/plain').set('Cache-Control','public, max-age=86400').send(`Contact: mailto:clientcare@ivyandpearls.co.uk\nPreferred-Languages: en\nCanonical: ${site}/.well-known/security.txt\nPolicy: ${site}/security/\n`);
 });
 
 app.get('/sitemap.xml', async (req, res, next) => {
   try {
-    const site = (process.env.SITE_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
+    const site = (process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.FRONTEND_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
     const staticPages=STATIC_SITEMAP_PAGES;
     let records = { products: [], posts: [] };
     if (hasSupabase()) records = await sitemapRecords();
@@ -125,7 +131,7 @@ app.get('/sitemap.xml', async (req, res, next) => {
 // SSR handler
 async function bootstrapForUrl(url) {
   if (!hasSupabase()) return { configurationPending: true };
-  const u = new URL(url, process.env.SITE_URL || 'https://ivyandpearls.co.uk');
+  const u = new URL(url, process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.FRONTEND_URL || 'https://ivyandpearls.co.uk');
   const p = u.pathname;
   if (p === '/') {
     const products = await listProducts({ limit: 16 });
