@@ -1,5 +1,5 @@
 import React from 'react';
-import {hydrateRoot} from 'react-dom/client';
+import {createRoot,hydrateRoot} from 'react-dom/client';
 import {BrowserRouter} from 'react-router-dom';
 import {HelmetProvider} from 'react-helmet-async';
 import App from './App';
@@ -9,6 +9,29 @@ import {CartProvider} from './context/CartContext';
 import {AuthProvider} from './context/AuthContext';
 import './styles/global.css';
 
-hydrateRoot(document.getElementById('root'),
- <HelmetProvider><BootstrapProvider value={window.__IVY_BOOTSTRAP__||{}}><AuthProvider><CartProvider><BrowserRouter><ErrorBoundary><App/></ErrorBoundary></BrowserRouter></CartProvider></AuthProvider></BootstrapProvider></HelmetProvider>
+const rootElement=document.getElementById('root');
+const bootstrap=window.__IVY_BOOTSTRAP__||{};
+const app=(
+  <HelmetProvider>
+    <BootstrapProvider value={bootstrap}>
+      <AuthProvider>
+        <CartProvider>
+          <BrowserRouter>
+            <ErrorBoundary><App/></ErrorBoundary>
+          </BrowserRouter>
+        </CartProvider>
+      </AuthProvider>
+    </BootstrapProvider>
+  </HelmetProvider>
 );
+
+/*
+ * SSR pages contain React markup and are hydrated normally.
+ * A static/edge fallback may legitimately contain an empty #root; mounting
+ * instead of hydrating that shell prevents React errors #418/#423.
+ */
+if(rootElement.hasChildNodes()){
+  hydrateRoot(rootElement,app);
+}else{
+  createRoot(rootElement).render(app);
+}

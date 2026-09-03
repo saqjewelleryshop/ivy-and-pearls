@@ -3,11 +3,23 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/client",
   "routes": [
-    { "handle": "filesystem" },
+    {
+      "src": "/assets/(.*)",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/images/(.*)",
+      "headers": { "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800" },
+      "dest": "/images/$1"
+    },
+    { "src": "/favicon.ico", "dest": "/favicon.ico" },
+    { "src": "/favicon.svg", "dest": "/favicon.svg" },
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/media/(.*)", "dest": "/api/index.js" },
     { "src": "/robots.txt", "dest": "/api/index.js" },
     { "src": "/sitemap.xml", "dest": "/api/index.js" },
+    { "src": "/.well-known/security.txt", "dest": "/api/index.js" },
     { "src": "/(.*)", "dest": "/api/index.js" }
   ]
 }

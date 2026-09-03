@@ -2,11 +2,11 @@ import React,{createContext,useContext,useEffect,useMemo,useState} from 'react';
 const C=createContext(null);
 const KEY='ivy_cart_v2';
 
-export function CartProvider({children,ssr=false}){
+export function CartProvider({children}){
   const [items,setItems]=useState([]);
   const [open,setOpen]=useState(false);
-  useEffect(()=>{if(ssr)return;try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(x))setItems(x);}catch{}},[ssr]);
-  useEffect(()=>{if(!ssr)localStorage.setItem(KEY,JSON.stringify(items));},[items,ssr]);
+  useEffect(()=>{try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(x))setItems(x);}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(items));}catch{}},[items]);
   const api=useMemo(()=>({
     items,open,setOpen,
     count:items.reduce((s,i)=>s+i.quantity,0),

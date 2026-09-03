@@ -11,6 +11,6 @@ import './styles/global.css';
 
 export function render(url,data={}){
  const helmetContext={};
- const html=renderToString(<HelmetProvider context={helmetContext}><BootstrapProvider value={data}><AuthProvider><CartProvider ssr><StaticRouter location={url}><ErrorBoundary><App/></ErrorBoundary></StaticRouter></CartProvider></AuthProvider></BootstrapProvider></HelmetProvider>);
+ const html=renderToString(<HelmetProvider context={helmetContext}><BootstrapProvider value={data}><AuthProvider><CartProvider><StaticRouter location={url}><ErrorBoundary><App/></ErrorBoundary></StaticRouter></CartProvider></AuthProvider></BootstrapProvider></HelmetProvider>);
  return {html,helmet:helmetContext.helmet,status:data?.notFound?404:200};
 }
