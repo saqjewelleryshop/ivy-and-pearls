@@ -14,7 +14,7 @@ export const securityHeaders = helmet({
       imgSrc: ["'self'", 'data:', 'https:'],
       fontSrc: ["'self'", 'data:', 'https:'],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://woo-chat-bot-widget.netlify.app'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://widget-omega-nine.vercel.app/widget.js'],
       frameSrc: ['https://js.stripe.com', 'https://hooks.stripe.com'],
       connectSrc: ["'self'", 'https://*.supabase.co', 'https://api.stripe.com'],
       formAction: ["'self'"],
