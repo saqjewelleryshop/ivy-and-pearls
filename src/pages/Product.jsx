@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Link,useParams} from 'react-router-dom';
 import Seo from '../components/Seo';
+import NotFound from './NotFound';
 import ProductGrid from '../components/ProductGrid';
 import {getProduct,getProducts} from '../lib/api';
 import {money} from '../lib/format';
@@ -23,9 +24,10 @@ export default function Product(){
   const [variantId,setVariantId]=useState(null);
   const [qty,setQty]=useState(1);
   const [activeImage,setActiveImage]=useState(0);
+  const [manualImage,setManualImage]=useState(false);
 
   useEffect(()=>{
-    if(!product){
+    if(!product&&!boot.notFound){
       getProduct(slug)
         .then(setProduct)
         .catch(()=>{});
@@ -62,9 +64,6 @@ export default function Product(){
     [product,variantId]
   );
 
-  console.log('PRODUCT VARIANTS:',product?.variants);
-  console.log('SELECTED VARIANT:',variant);
-  console.log('VARIANT IMAGE:',variant?.image_url);
 
   const variantImage=
   variant?.image_url || null;
@@ -72,20 +71,15 @@ export default function Product(){
 
   useEffect(()=>{
 
-  /*
-   * Whenever the customer selects another variant,
-   * reset the gallery to image 0.
-   *
-   * Because displayImages places the selected
-   * variant image first, image 0 becomes the
-   * correct variant image.
-   */
+  /* Reset to the primary gallery position when the selected option changes. */
   setActiveImage(0);
+  setManualImage(false);
 
 },[variant?.id]);
 
 
   if(!product){
+    if(boot.notFound)return <NotFound/>;
     return (
       <section className="loading-page">
         Loading piece…
@@ -105,7 +99,7 @@ export default function Product(){
   );
 
   const image=
-  variantImage
+  !manualImage && variantImage
     ? {
         id:`variant-${variant?.id}`,
         url:variantImage,
@@ -116,6 +110,15 @@ export default function Product(){
       images[0];
 
   
+  const schemaImages=[...new Set([
+    ...images.map(i=>i.url).filter(Boolean),
+    ...(product.variants||[]).map(v=>v.image_url).filter(Boolean)
+  ])];
+
+  const hasFinishVariants=(product.variants||[]).some(v=>
+    /gold|silver|rose|white|finish|tone|colour|color/i.test(String(v.title||''))
+  );
+
   const inStock=
     variant &&
     (
@@ -132,8 +135,7 @@ export default function Product(){
       product.short_description||
       product.description,
 
-    image:
-      images.map(i=>i.url),
+    image:schemaImages,
 
     sku:
       variant?.sku,
@@ -331,14 +333,15 @@ export default function Product(){
                     }
 
                     className={
-                      index===activeImage
+                      ((manualImage||!variantImage)&&index===activeImage)
                         ? 'is-active'
                         : ''
                     }
 
-                    onClick={()=>
-                      setActiveImage(index)
-                    }
+                    onClick={()=>{
+                      setActiveImage(index);
+                      setManualImage(true);
+                    }}
 
                     aria-label={
                       `View ${index+1}`
@@ -444,15 +447,8 @@ export default function Product(){
                   <div className="luxury-variants__top">
 
                     <legend>
-                      Choose an option
+                      {hasFinishVariants?'Finish':'Choose an option'}
                     </legend>
-
-                    <button
-                      type="button"
-                      className="luxury-size-guide"
-                    >
-                      Size guide
-                    </button>
 
                   </div>
 
@@ -484,6 +480,8 @@ export default function Product(){
                           }
 
                           disabled={unavailable}
+
+                          aria-pressed={variant?.id===v.id}
 
                           onClick={()=>
                             setVariantId(v.id)

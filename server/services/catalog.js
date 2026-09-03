@@ -77,6 +77,15 @@ const PRODUCT_SELECT = `
 `;
 
 
+function storefrontTitle(title=''){
+  const value=String(title||'').trim();
+  const exact=new Map([
+    ['Medium Stone-Set Bangle Bracelet – 18cm Gold, Rose Gold & White Gold Tone','Medium Stone-Set Bangle – 18cm'],
+    ['925 Sterling Silver Double-Circle Pavé Nail Bracelet – Luxury Thick Diamond-Style Bangle','Double-Circle Pavé Bangle in Sterling Silver']
+  ]);
+  return exact.get(value)||value;
+}
+
 function normalize(product){
   if(!product)return null;
 
@@ -133,6 +142,7 @@ function normalize(product){
 
   return {
     ...product,
+    title:storefrontTitle(product.title),
 
     variants,
 
@@ -280,6 +290,22 @@ export async function getProductBySlug(slug){
 }
 
 
+
+export async function getProductsByIds(ids=[]){
+  const clean=[...new Set((ids||[]).map(String).filter(Boolean))].slice(0,100);
+  if(!clean.length)return [];
+  const db=supabaseAdmin();
+  const {data,error}=await db
+    .from('products')
+    .select(PRODUCT_SELECT)
+    .in('id',clean)
+    .eq('status','active')
+    .neq('visibility','hidden');
+  if(error)throw error;
+  const order=new Map(clean.map((id,index)=>[id,index]));
+  return (data||[]).map(normalize).sort((a,b)=>(order.get(String(a.id))??999)-(order.get(String(b.id))??999));
+}
+
 export async function getProductsByVariantIds(ids){
 
   if(!ids?.length){
@@ -301,6 +327,7 @@ export async function getProductsByVariantIds(ids){
       zq_spec_id,
       title,
       attributes,
+      image_url,
       price_minor,
       compare_at_minor,
       cost_minor,

@@ -27,7 +27,8 @@ import Terms from './pages/Terms';
 import Cookies from './pages/Cookies';
 import Accessibility from './pages/Accessibility';
 import Admin from './pages/Admin';
-import Wishlist from './pages/Wshlist';
+import Wishlist from './pages/Wishlist';
+import Search from './pages/Search';
 import NotFound from './pages/NotFound';
 import ScrollToTop from './components/ScrollToTop';
 
@@ -66,6 +67,7 @@ export default function App(){
             <Route path="/accessibility/" element={<Accessibility/>}/>
             <Route path="/admin/" element={<Admin/>}/>
             <Route path="/wishlist/" element={<Wishlist/>}/>
+            <Route path="/search/" element={<Search/>}/>
             <Route path="*" element={<NotFound/>}/>
         </Routes>
     </Layout>

@@ -79,6 +79,23 @@ export default function Header() {
   const [menu, setMenu] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [atTop, setAtTop] = useState(true);
+  const [wishlistCount,setWishlistCount]=useState(0);
+
+  useEffect(()=>{
+    const read=()=>{
+      try{
+        const ids=JSON.parse(localStorage.getItem('ivyandpearls_wishlist')||'[]');
+        setWishlistCount(Array.isArray(ids)?ids.length:0);
+      }catch{setWishlistCount(0);}
+    };
+    read();
+    window.addEventListener('ivy-wishlist-change',read);
+    window.addEventListener('storage',read);
+    return()=>{
+      window.removeEventListener('ivy-wishlist-change',read);
+      window.removeEventListener('storage',read);
+    };
+  },[]);
 
   useEffect(() => {
     let last = window.scrollY;
@@ -173,10 +190,11 @@ export default function Header() {
             <Link
               className="header-icon"
               to="/wishlist/"
-              aria-label="Wishlist"
+              aria-label={`Wishlist with ${wishlistCount} ${wishlistCount===1?'item':'items'}`}
               title="Wishlist"
             >
               <HeartIcon />
+              {wishlistCount>0&&<span className="wishlist-count">{wishlistCount>99?'99+':wishlistCount}</span>}
             </Link>
 
             <Link

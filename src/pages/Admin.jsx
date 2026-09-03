@@ -6,8 +6,8 @@ import {api, removeAdminProduct, bulkDeleteAdminVariants, restoreAdminVariants
 } from '../lib/api';
 import {money,date,slugify} from '../lib/format';
 
-const NAV=['overview','products','media','catalogue','zq import','orders','payments'];
-const PRODUCT_TABS=['general','pricing','inventory','variants','attributes','media','organisation','seo','shipping','payments','zq','advanced'];
+const NAV=['overview','products','media','catalogue','partner import','orders','payments'];
+const PRODUCT_TABS=['general','pricing','inventory','variants','attributes','media','organisation','seo','shipping','payments','partner','advanced'];
 
 export default function Admin(){
   const {session,user,loading}=useAuth();
@@ -76,7 +76,7 @@ export default function Admin(){
     );
   }
  return <><Seo title="Admin" description="Ivy & Pearls administration." path="/admin/" noindex/><section className="admin-shell"><aside className="admin-nav"><div><p className="eyebrow">Ivy &amp; Pearls</p><h1>Admin</h1></div>{NAV.map(x=><button key={x} className={tab===x?'is-active':''} onClick={()=>setTab(x)}>{x}</button>)}</aside><main className="admin-main">
- {tab==='overview'&&<Overview data={data}/>} {tab==='products'&&<Products headers={headers}/>} {tab==='media'&&<MediaLibrary headers={headers}/>} {tab==='catalogue'&&<Catalogue headers={headers}/>} {tab==='zq import'&&<ZqImport headers={headers}/>} {tab==='orders'&&<Orders headers={headers}/>} {tab==='payments'&&<Payments headers={headers}/>} </main></section></>
+ {tab==='overview'&&<Overview data={data}/>} {tab==='products'&&<Products headers={headers}/>} {tab==='media'&&<MediaLibrary headers={headers}/>} {tab==='catalogue'&&<Catalogue headers={headers}/>} {tab==='partner import'&&<ZqImport headers={headers}/>} {tab==='orders'&&<Orders headers={headers}/>} {tab==='payments'&&<Payments headers={headers}/>} </main></section></>
 }
 
 function Overview({data}){return <><div className="admin-title"><p className="eyebrow">Overview</p><h2>Store at a glance.</h2></div><div className="admin-stats"><div><span>Products</span><b>{data?.products??0}</b></div><div><span>Orders</span><b>{data?.orders??0}</b></div><div><span>New messages</span><b>{data?.newMessages??0}</b></div></div><section className="admin-panel"><h3>Recent orders</h3>{data?.recentOrders?.map(o=><div className="admin-row" key={o.order_number}><span>{o.order_number}</span><span>{o.status.replaceAll('_',' ')}</span><span>{money(o.total_minor)}</span><span>{date(o.created_at)}</span></div>)}</section></>}
@@ -91,7 +91,7 @@ function Products({headers}){
       .toLowerCase()
       .includes(q.toLowerCase())
   );
- return <><div className="admin-title admin-title--toolbar"><div><p className="eyebrow">Catalogue</p><h2>Products.</h2><p>Import from ZQ as a supplier-linked draft, then control exactly what customers see here.</p></div><input className="admin-filter" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products…"/></div>{state&&<p className="admin-notice">{state}</p>}<div className="admin-product-table"><div className="admin-product-table__head"><span>Product</span><span>Status</span><span>Price</span><span>Stock</span><span>Supplier</span></div>{visible.map(p=>{const variants=p.product_variants||[],prices=variants.map(v=>v.price_minor),stock=variants.reduce((a,v)=>a+(v.inventory_quantity||0),0);return <button key={p.id} className="admin-product-line" onClick={()=>setSelected(p.id)}><span className="admin-product-line__title">{p.product_images?.[0]&&<img src={p.product_images.sort((a,b)=>a.sort_order-b.sort_order)[0].url} alt=""/>}<span><b>{p.title}</b><small>/{p.slug}/</small></span></span><span><StatusPill status={p.status}/></span><span>{prices.length?money(Math.min(...prices)):'—'}</span><span>{stock}</span><span>{p.zq_product_id||variants.find(v=>v.zq_product_id)?.zq_product_id?'ZQ linked':'Manual'}</span></button>})}</div>{selected&&<ProductEditor id={selected} headers={headers} onClose={()=>{setSelected(null);load()}} setState={setState}/>}</>;
+ return <><div className="admin-title admin-title--toolbar"><div><p className="eyebrow">Catalogue</p><h2>Products.</h2><p>Import from an international partner as a linked draft, then control exactly what customers see here.</p></div><input className="admin-filter" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search products…"/></div>{state&&<p className="admin-notice">{state}</p>}<div className="admin-product-table"><div className="admin-product-table__head"><span>Product</span><span>Status</span><span>Price</span><span>Stock</span><span>Partner</span></div>{visible.map(p=>{const variants=p.product_variants||[],prices=variants.map(v=>v.price_minor),stock=variants.reduce((a,v)=>a+(v.inventory_quantity||0),0);return <button key={p.id} className="admin-product-line" onClick={()=>setSelected(p.id)}><span className="admin-product-line__title">{p.product_images?.[0]&&<img src={p.product_images.sort((a,b)=>a.sort_order-b.sort_order)[0].url} alt=""/>}<span><b>{p.title}</b><small>/{p.slug}/</small></span></span><span><StatusPill status={p.status}/></span><span>{prices.length?money(Math.min(...prices)):'—'}</span><span>{stock}</span><span>{p.zq_product_id||variants.find(v=>v.zq_product_id)?.zq_product_id?'International partner':'Manual'}</span></button>})}</div>{selected&&<ProductEditor id={selected} headers={headers} onClose={()=>{setSelected(null);load()}} setState={setState}/>}</>;
 }
 
 function StatusPill({status}){return <span className={`admin-status admin-status--${status}`}>{String(status).replaceAll('_',' ')}</span>}
@@ -145,7 +145,7 @@ function ProductEditor({id,headers,onClose,setState}){
     const confirmed=window.confirm(
         `Remove "${product.title}" from Ivy & Pearls?\n\n` +
         `This will hide the product from your Ivy & Pearls catalogue and storefront.\n\n` +
-        `The product will NOT be deleted from ZQ.`
+        `The product will remain untouched with the international partner.`
     );
 
     if(!confirmed)return;
@@ -169,7 +169,7 @@ function ProductEditor({id,headers,onClose,setState}){
         }
 
         setState(
-            'Product removed from Ivy & Pearls. ZQ was not changed.'
+            'Product removed from Ivy & Pearls. The international partner was not changed.'
         );
 
         onClose();
@@ -229,8 +229,8 @@ function ProductEditor({id,headers,onClose,setState}){
       setBusy(false);
     }
   };
- return <div className="admin-modal admin-modal--editor"><div className="admin-editor"><header className="admin-editor__head"><div><p className="eyebrow">Edit product</p><h2>{product.title}</h2><div className="admin-editor__meta"><StatusPill status={product.status}/><span>{product.zq_product_id?`ZQ #${product.zq_product_id}`:'Manual product'}</span>{busy&&<span>Saving…</span>}{message&&<span>{message}</span>}</div></div><button className="admin-editor__close" onClick={onClose} aria-label="Close editor">×</button></header><div className="admin-editor__layout"><nav className="admin-editor__tabs">{PRODUCT_TABS.map(t=><button key={t} className={tab===t?'is-active':''} onClick={()=>setTab(t)}>{t}</button>)}</nav><section className="admin-editor__content">
- {tab==='general'&&<GeneralTab product={product} patch={patch}/>} {tab==='pricing'&&<PricingTab product={product} headers={headers} load={load}/>} {tab==='inventory'&&<InventoryTab product={product} headers={headers} load={load}/>} {tab==='variants'&&<VariantsTab product={product} headers={headers} load={load}/>} {tab==='attributes'&&<AttributesTab product={product} meta={meta} save={saveMerch}/>} {tab==='media'&&<MediaTab product={product} headers={headers} load={load}/>} {tab==='organisation'&&<OrganisationTab product={product} meta={meta} patch={patch} save={saveMerch}/>} {tab==='seo'&&<SeoTab product={product} patch={patch}/>} {tab==='shipping'&&<ShippingTab product={product} patch={patch}/>} {tab==='payments'&&<ProductPaymentsTab product={product} headers={headers} load={load}/>} {tab==='zq'&&<ZqTab product={product} headers={headers} load={load}/>} {tab==='advanced'&&<AdvancedTab
+ return <div className="admin-modal admin-modal--editor"><div className="admin-editor"><header className="admin-editor__head"><div><p className="eyebrow">Edit product</p><h2>{product.title}</h2><div className="admin-editor__meta"><StatusPill status={product.status}/><span>{product.zq_product_id?`Partner #${product.zq_product_id}`:'Manual product'}</span>{busy&&<span>Saving…</span>}{message&&<span>{message}</span>}</div></div><button className="admin-editor__close" onClick={onClose} aria-label="Close editor">×</button></header><div className="admin-editor__layout"><nav className="admin-editor__tabs">{PRODUCT_TABS.map(t=><button key={t} className={tab===t?'is-active':''} onClick={()=>setTab(t)}>{t}</button>)}</nav><section className="admin-editor__content">
+ {tab==='general'&&<GeneralTab product={product} patch={patch}/>} {tab==='pricing'&&<PricingTab product={product} headers={headers} load={load}/>} {tab==='inventory'&&<InventoryTab product={product} headers={headers} load={load}/>} {tab==='variants'&&<VariantsTab product={product} headers={headers} load={load}/>} {tab==='attributes'&&<AttributesTab product={product} meta={meta} save={saveMerch}/>} {tab==='media'&&<MediaTab product={product} headers={headers} load={load}/>} {tab==='organisation'&&<OrganisationTab product={product} meta={meta} patch={patch} save={saveMerch}/>} {tab==='seo'&&<SeoTab product={product} patch={patch}/>} {tab==='shipping'&&<ShippingTab product={product} patch={patch}/>} {tab==='payments'&&<ProductPaymentsTab product={product} headers={headers} load={load}/>} {tab==='partner'&&<ZqTab product={product} headers={headers} load={load}/>} {tab==='advanced'&&<AdvancedTab
     product={product}
     patch={patch}
     onRemove={handleRemoveProduct}
@@ -281,7 +281,7 @@ function PricingTab({product,headers,load}){
 
       <p className="admin-help">
         Retail pricing is controlled by Ivy &amp; Pearls
-        and is never overwritten by ZQ sync.
+        and is never overwritten by international partner sync.
       </p>
 
 
@@ -333,7 +333,7 @@ function PricingTab({product,headers,load}){
           <div>
 
             <span>
-              Supplier cost
+              Partner cost
             </span>
 
             <b>
@@ -384,7 +384,7 @@ function PricingTab({product,headers,load}){
 }
 function MoneyEditor({label,value,onSave,nullable}){const [v,setV]=useState(value==null?'':(value/100).toFixed(2));useEffect(()=>setV(value==null?'':(value/100).toFixed(2)),[value]);return <Field label={`${label} (£)`}><input type="number" min="0" step="0.01" value={v} onChange={e=>setV(e.target.value)} onBlur={()=>onSave(v===''&&nullable?null:Math.round(Number(v||0)*100))}/></Field>}
 
-function InventoryTab({product,headers,load}){async function save(v,body){await api(`/admin/variants/${v.id}`,{method:'PATCH',headers,body:JSON.stringify(body)});load()}return <div className="admin-tab"><h3>Inventory</h3><p className="admin-help">ZQ-linked stock is supplier data. Your storefront reads the synchronized quantity, while backorder and low-stock behaviour remain under your control.</p>{(product.product_variants||[]).filter(v=>v.active!==false).map(v=><div className="admin-variant-card admin-variant-card--inventory" key={v.id}><div><b>{v.title}</b><small>ZQ SKU: {v.zq_sku||'—'}</small></div><Metric label="Available" value={v.inventory_quantity}/><Metric label="Locked" value={v.inventory_locked}/><Metric label="In transit" value={v.inventory_in_transit}/><Field label="Low stock"><input type="number" defaultValue={v.low_stock_threshold??''} onBlur={e=>save(v,{low_stock_threshold:e.target.value===''?null:Number(e.target.value)})}/></Field><label className="admin-check"><input type="checkbox" checked={v.allow_backorder||false} onChange={e=>save(v,{allow_backorder:e.target.checked})}/> Allow backorders</label></div>)}</div>}
+function InventoryTab({product,headers,load}){async function save(v,body){await api(`/admin/variants/${v.id}`,{method:'PATCH',headers,body:JSON.stringify(body)});load()}return <div className="admin-tab"><h3>Inventory</h3><p className="admin-help">International-partner stock is external inventory data. Your storefront reads the synchronized quantity, while backorder and low-stock behaviour remain under your control.</p>{(product.product_variants||[]).filter(v=>v.active!==false).map(v=><div className="admin-variant-card admin-variant-card--inventory" key={v.id}><div><b>{v.title}</b><small>Partner SKU: {v.zq_sku||'—'}</small></div><Metric label="Available" value={v.inventory_quantity}/><Metric label="Locked" value={v.inventory_locked}/><Metric label="In transit" value={v.inventory_in_transit}/><Field label="Low stock"><input type="number" defaultValue={v.low_stock_threshold??''} onBlur={e=>save(v,{low_stock_threshold:e.target.value===''?null:Number(e.target.value)})}/></Field><label className="admin-check"><input type="checkbox" checked={v.allow_backorder||false} onChange={e=>save(v,{allow_backorder:e.target.checked})}/> Allow backorders</label></div>)}</div>}
 function Metric({label,value}){return <div className="admin-metric"><span>{label}</span><b>{value??0}</b></div>}
 
 function VariantsTab({product,headers,load}){
@@ -521,7 +521,7 @@ function VariantsTab({product,headers,load}){
         `Remove ${count} selected variant${
           count===1?'':'s'
         } from Ivy & Pearls?\n\n`+
-        `ZQ will not be changed.`
+        `The international partner will not be changed.`
       );
 
 
@@ -665,7 +665,7 @@ function VariantsTab({product,headers,load}){
 
           <p className="admin-help">
             Manage customer-facing variants while
-            preserving ZQ supplier mappings.
+            preserving international partner mappings.
           </p>
 
         </div>
@@ -1006,12 +1006,12 @@ function VariantsTab({product,headers,load}){
               </Field>
 
 
-              <Field label="Supplier mapping">
+              <Field label="Partner mapping">
 
                 <div className="admin-readonly">
 
                   <span>
-                    ZQ SKU
+                    Partner SKU
                   </span>
 
                   <b>
@@ -1020,7 +1020,7 @@ function VariantsTab({product,headers,load}){
 
 
                   <span>
-                    ZQ spec
+                    Partner spec
                   </span>
 
                   <b>
@@ -1140,9 +1140,7 @@ function MediaTab({
       </h3>
 
       <p className="admin-help">
-        Manage images associated with this product.
-        Upload new files in the top-level
-        <Link to="/admin/#media">Media Library</Link>.
+        Manage images associated with this product. Upload new files from the main Media tab in the admin navigation, then paste the copied media path here.
       </p>
 
 
@@ -1204,8 +1202,8 @@ function MediaTab({
                 }
               >
                 {im.storage_path
-                  ? 'Supabase Storage'
-                  : 'External / supplier image'
+                  ? 'Ivy & Pearls media'
+                  : 'External / international partner image'
                 }
               </span>
 
@@ -1274,9 +1272,9 @@ function MediaTab({
       >
 
         <input
-          type="url"
+          type="text"
           required
-          placeholder="Image URL"
+          placeholder="/media/image-name.webp or https://…"
 
           value={url}
 
@@ -1328,7 +1326,7 @@ function ProductPaymentsTab({product,headers,load}){
   .filter(v=>v.active!==false);
  return <div className="admin-tab"><h3>Payments / Stripe</h3><p className="admin-help">Publishing automatically creates or updates the Stripe Product and one Stripe Price per active sellable variant. Retail prices remain controlled here in Ivy &amp; Pearls.</p><div className="admin-stripe-status"><div><span>Sync status</span><b>{product.stripe_sync_status||'not synced'}</b></div><div><span>Stripe Product</span><b>{product.stripe_product_id||'Not created'}</b></div><div><span>Last synced</span><b>{product.stripe_synced_at?date(product.stripe_synced_at):'Never'}</b></div></div>{product.stripe_sync_error&&<p className="form-error">{product.stripe_sync_error}</p>}<button className="button button--dark" onClick={sync}>Sync with Stripe</button>{state&&<p className="admin-notice">{state}</p>}<h4>Variant prices</h4><div className="admin-stripe-variants">{variants.map(v=><div key={v.id}><span><b>{v.title}</b><small>{v.sku}</small></span><span>{money(v.price_minor)}</span><span>{v.stripe_price_id||'Not synced'}</span></div>)}</div>{product.stripe_product_id&&<a className="button" href={`https://dashboard.stripe.com/${product.stripe_product_id}`} target="_blank" rel="noreferrer">Open in Stripe ↗</a>}</div>}
 
-function ZqTab({product,headers,load}){const [fields,setFields]=useState(['inventory','cost','weight','supplier_status']),[state,setState]=useState('');const toggle=f=>setFields(x=>x.includes(f)?x.filter(y=>y!==f):[...x,f]);async function sync(){setState('Syncing…');try{await api(`/admin/products/${product.id}/sync-zq`,{method:'POST',headers,body:JSON.stringify({fields})});setState('ZQ sync complete. Your merchandising fields were not overwritten.');load()}catch(e){setState(e.message)}}return <div className="admin-tab"><h3>ZQ supplier link</h3>{!product.zq_product_id?<p>This product has no ZQ supplier link.</p>:<><div className="admin-zq-card"><div><span>ZQ product</span><b>#{product.zq_product_id}</b></div><div><span>Supplier status</span><b>{product.zq_source_status||'—'}</b></div><div><span>Last synced</span><b>{product.zq_last_synced_at?date(product.zq_last_synced_at):'Never'}</b></div></div><h4>Automatic sync protection</h4><div className="admin-sync-switches">{[['sync_inventory','Inventory'],['sync_cost','Supplier cost'],['sync_weight','Weight'],['sync_supplier_status','Supplier status'],['sync_images','New supplier images']].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(product[key])} onChange={e=>api(`/admin/products/${product.id}`,{method:'PATCH',headers,body:JSON.stringify({[key]:e.target.checked})}).then(load)}/>{label}</label>)}</div><h4>Sync now</h4><div className="admin-sync-fields">{['inventory','cost','weight','supplier_status','images'].map(f=><label key={f}><input type="checkbox" checked={fields.includes(f)} onChange={()=>toggle(f)}/>{f.replace('_',' ')}</label>)}</div><button className="button button--dark" disabled={!fields.length} onClick={sync}>Sync selected fields</button><p>{state}</p><div className="admin-callout"><strong>Protected from ZQ overwrite</strong><p>Title, slug, descriptions, retail prices, categories, collections, tags, SEO, gallery order and customer-facing attributes remain controlled by Ivy &amp; Pearls.</p></div><h4>Recent sync history</h4>{(product.zq_sync_log||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,10).map(r=><div className="admin-sync-log" key={r.id}><span>{date(r.created_at)}</span><span>{r.sync_type}</span><span>{(r.fields||[]).join(', ')}</span><span>{r.success?'Success':'Failed'}</span></div>)}</>}</div>}
+function ZqTab({product,headers,load}){const [fields,setFields]=useState(['inventory','cost','weight','supplier_status']),[state,setState]=useState('');const toggle=f=>setFields(x=>x.includes(f)?x.filter(y=>y!==f):[...x,f]);async function sync(){setState('Syncing…');try{await api(`/admin/products/${product.id}/sync-zq`,{method:'POST',headers,body:JSON.stringify({fields})});setState('Partner sync complete. Your merchandising fields were not overwritten.');load()}catch(e){setState(e.message)}}return <div className="admin-tab"><h3>International partner link</h3>{!product.zq_product_id?<p>This product has no international partner link.</p>:<><div className="admin-zq-card"><div><span>Partner product</span><b>#{product.zq_product_id}</b></div><div><span>Partner status</span><b>{product.zq_source_status||'—'}</b></div><div><span>Last synced</span><b>{product.zq_last_synced_at?date(product.zq_last_synced_at):'Never'}</b></div></div><h4>Automatic sync protection</h4><div className="admin-sync-switches">{[['sync_inventory','Inventory'],['sync_cost','Partner cost'],['sync_weight','Weight'],['sync_supplier_status','Partner status'],['sync_images','New partner images']].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean(product[key])} onChange={e=>api(`/admin/products/${product.id}`,{method:'PATCH',headers,body:JSON.stringify({[key]:e.target.checked})}).then(load)}/>{label}</label>)}</div><h4>Sync now</h4><div className="admin-sync-fields">{['inventory','cost','weight','supplier_status','images'].map(f=><label key={f}><input type="checkbox" checked={fields.includes(f)} onChange={()=>toggle(f)}/>{f.replace('_',' ')}</label>)}</div><button className="button button--dark" disabled={!fields.length} onClick={sync}>Sync selected fields</button><p>{state}</p><div className="admin-callout"><strong>Protected from partner overwrite</strong><p>Title, slug, descriptions, retail prices, categories, collections, tags, SEO, gallery order and customer-facing attributes remain controlled by Ivy &amp; Pearls.</p></div><h4>Recent sync history</h4>{(product.zq_sync_log||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,10).map(r=><div className="admin-sync-log" key={r.id}><span>{date(r.created_at)}</span><span>{r.sync_type}</span><span>{(r.fields||[]).join(', ')}</span><span>{r.success?'Success':'Failed'}</span></div>)}</>}</div>}
 
 function AdvancedTab({
   product,
@@ -1431,7 +1429,7 @@ function AdvancedTab({
 
           <p>
             The supplier product will remain completely
-            untouched in ZQ and can be imported again later.
+            untouched with the international partner and can be imported again later.
           </p>
         </div>
 
@@ -1484,7 +1482,7 @@ function ZqImport({headers}){
   async function search(e){
     e?.preventDefault();
 
-    setState('Searching ZQ…');
+    setState('Searching international partners…');
 
     try{
       const r=await api(
@@ -1514,20 +1512,20 @@ function ZqImport({headers}){
       );
 
     }catch(error){
-      console.error('ZQ search failed:',error);
+      console.error('Partner search failed:',error);
 
       setRecords([]);
 
       setState(
         error.message||
-        'Could not search ZQ products.'
+        'Could not search international partner products.'
       );
     }
   }
  async function choose(id){setState('Loading product…');try{const r=await api(`/admin/zq/products/${id}`,{headers});setSelected(r.product);setForm(f=>({...f,title:r.product.subject||'',slug:slugify(r.product.subject||''),description:r.product.description||''}));setState('')}catch(e){setState(e.message)}}
  async function submit(e){e.preventDefault();setState('Importing…');try{const r=await api(`/admin/zq/import/${selected.id}`,{method:'POST',headers,body:JSON.stringify({...form,retailPricePounds:Number(form.retailPricePounds)})});setState(`Imported ${r.slug} into Needs Review. Open Products to merchandise it before publishing.`);setSelected(null)}catch(e){setState(e.message)}}
  const f=n=>({value:form[n],onChange:e=>setForm(x=>({...x,[n]:e.target.type==='checkbox'?e.target.checked:e.target.value}))});
- return <><div className="admin-title"><p className="eyebrow">ZQ import inbox</p><h2>Supplier products.</h2><p>ZQ is the supplier layer, not your storefront CMS. Import products into review, then rewrite and organise them before publication.</p></div><form className="admin-search" onSubmit={search}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Product name, ID or SKU"/><button className="button button--dark">Search ZQ</button></form><p>{state}</p><div className="zq-grid">
+ return <><div className="admin-title"><p className="eyebrow">International partner import</p><h2>Partner products.</h2><p>International partners provide source catalogue and fulfilment data; Ivy & Pearls remains the storefront source of truth. Import products into review, then rewrite and organise them before publication.</p></div><form className="admin-search" onSubmit={search}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Product name, ID or SKU"/><button className="button button--dark">Search partners</button></form><p>{state}</p><div className="zq-grid">
   {records.map(r=>
     <button
       className="zq-card"
@@ -1548,7 +1546,7 @@ function ZqImport({headers}){
       <em>Import as draft</em>
     </button>
   )}
-</div>{selected&&<div className="admin-modal"><form onSubmit={submit}><button type="button" className="admin-modal__close" onClick={()=>setSelected(null)}>×</button><p className="eyebrow">ZQ → Ivy &amp; Pearls</p><h3>Prepare supplier product</h3><div className="form-grid"><label>Product title<input required {...f('title')}/></label><label>
+</div>{selected&&<div className="admin-modal"><form onSubmit={submit}><button type="button" className="admin-modal__close" onClick={()=>setSelected(null)}>×</button><p className="eyebrow">International partner → Ivy &amp; Pearls</p><h3>Prepare supplier product</h3><div className="form-grid"><label>Product title<input required {...f('title')}/></label><label>
   URL slug
   <input
     required
@@ -1568,7 +1566,7 @@ function Payments({headers}){
  const secrets=data?.secrets||{};
  return <><div className="admin-title"><p className="eyebrow">Payments</p><h2>Stripe.</h2><p>Control storefront payment mode here. Secret API keys and webhook signing secrets stay in server environment variables and are never returned to the browser.</p></div><form className="admin-panel admin-payments" onSubmit={save}><div className="admin-form-grid"><Field label="Payments"><select value={form.enabled?'enabled':'disabled'} onChange={e=>set('enabled',e.target.value==='enabled')}><option value="disabled">Disabled</option><option value="enabled">Enabled</option></select></Field><Field label="Mode"><select value={form.mode} onChange={e=>set('mode',e.target.value)}><option value="test">Test</option><option value="live">Live</option></select></Field><Field label="Currency"><input value={form.currency||'GBP'} maxLength="3" onChange={e=>set('currency',e.target.value.toUpperCase())}/></Field><Field label="Minimum order (pence)"><input type="number" min="0" value={form.minimum_order_minor??50} onChange={e=>set('minimum_order_minor',Number(e.target.value))}/></Field><Field label="Test publishable key"><input value={form.test_publishable_key||''} placeholder="pk_test_…" onChange={e=>set('test_publishable_key',e.target.value)}/></Field><Field label="Live publishable key"><input value={form.live_publishable_key||''} placeholder="pk_live_…" onChange={e=>set('live_publishable_key',e.target.value)}/></Field><Field label="Statement descriptor" hint="Optional; Stripe rules apply."><input value={form.statement_descriptor||''} maxLength="22" onChange={e=>set('statement_descriptor',e.target.value)}/></Field></div><label className="admin-check"><input type="checkbox" checked={Boolean(form.automatic_payment_methods)} onChange={e=>set('automatic_payment_methods',e.target.checked)}/> Automatic payment methods</label><label className="admin-check"><input type="checkbox" checked={Boolean(form.receipt_emails)} onChange={e=>set('receipt_emails',e.target.checked)}/> Ask Stripe to send payment receipts</label>{form.mode==='live'&&<Field label="Confirm live mode" hint="Type LIVE before saving live mode."><input value={liveConfirm} onChange={e=>setLiveConfirm(e.target.value)} placeholder="LIVE"/></Field>}<div className="admin-secret-status"><div><span>Test secret key</span><b>{secrets.testSecretConfigured?'Configured ✓':'Missing'}</b></div><div><span>Test webhook secret</span><b>{secrets.testWebhookConfigured?'Configured ✓':'Missing'}</b></div><div><span>Live secret key</span><b>{secrets.liveSecretConfigured?'Configured ✓':'Missing'}</b></div><div><span>Live webhook secret</span><b>{secrets.liveWebhookConfigured?'Configured ✓':'Missing'}</b></div></div><div className="admin-payments-actions"><button className="button button--dark">Save Stripe settings</button><button className="button" type="button" onClick={test}>Test Stripe connection</button><a className="button" href="https://dashboard.stripe.com/" target="_blank" rel="noreferrer">Open Stripe Dashboard ↗</a></div>{state&&<p className="admin-notice">{state}</p>}</form><section className="admin-panel"><h3>Webhook health</h3>{(data?.lastEvents||[]).length?(data.lastEvents||[]).map(ev=><div className="admin-row" key={ev.id}><span>{ev.event_type}</span><span>{ev.livemode?'LIVE':'TEST'}</span><span>{ev.success?'Success':'Failed'}</span><span>{date(ev.created_at)}</span></div>):<p>No Stripe webhook events recorded yet.</p>}</section></>}
 
-function Orders({headers}){const [orders,setOrders]=useState([]),[state,setState]=useState('');const load=()=>api('/admin/orders',{headers}).then(r=>setOrders(r.orders));useEffect(()=>{load()},[]);async function retry(id){setState('Submitting to ZQ…');try{await api(`/admin/orders/${id}/retry-zq`,{method:'POST',headers});setState('Submitted.');load()}catch(e){setState(e.message)}}return <><div className="admin-title"><p className="eyebrow">Orders</p><h2>Fulfilment.</h2><p>{state}</p></div><div className="admin-orders">{orders.map(o=><details key={o.id}><summary><b>{o.order_number}</b><span>{o.status.replaceAll('_',' ')}</span><span>{money(o.total_minor)}</span><span>{date(o.created_at)}</span></summary><div className="admin-order-body"><p>{o.email}</p><p>ZQ: {o.zq_platform_order_id||'Not yet submitted'} · {o.zq_status||'—'}</p><p>Tracking: {o.tracking_number||'Awaiting tracking'}</p>{o.order_items?.map(i=><p key={i.id}>{i.product_name} · {i.variant_name} × {i.quantity}</p>)}{o.status==='fulfilment_error'&&<button className="button button--dark" onClick={()=>retry(o.id)}>Retry ZQ fulfilment</button>}</div></details>)}</div></>}
+function Orders({headers}){const [orders,setOrders]=useState([]),[state,setState]=useState('');const load=()=>api('/admin/orders',{headers}).then(r=>setOrders(r.orders));useEffect(()=>{load()},[]);async function retry(id){setState('Submitting to international partner…');try{await api(`/admin/orders/${id}/retry-zq`,{method:'POST',headers});setState('Submitted.');load()}catch(e){setState(e.message)}}return <><div className="admin-title"><p className="eyebrow">Orders</p><h2>Fulfilment.</h2><p>{state}</p></div><div className="admin-orders">{orders.map(o=><details key={o.id}><summary><b>{o.order_number}</b><span>{o.status.replaceAll('_',' ')}</span><span>{money(o.total_minor)}</span><span>{date(o.created_at)}</span></summary><div className="admin-order-body"><p>{o.email}</p><p>Partner fulfilment: {o.zq_platform_order_id||'Not yet submitted'} · {o.zq_status||'—'}</p><p>Tracking: {o.tracking_number||'Awaiting tracking'}</p>{o.order_items?.map(i=><p key={i.id}>{i.product_name} · {i.variant_name} × {i.quantity}</p>)}{o.status==='fulfilment_error'&&<button className="button button--dark" onClick={()=>retry(o.id)}>Retry partner fulfilment</button>}</div></details>)}</div></>}
 
 function MediaLibrary({headers}){
   const [images,setImages]=useState([]);

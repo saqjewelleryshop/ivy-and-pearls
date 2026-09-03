@@ -13,6 +13,11 @@ export const getProducts=(params={})=>{
   return api(`/products${q.size?`?${q}`:''}`).then(r=>r.products);
 };
 export const getProduct=slug=>api(`/products/${encodeURIComponent(slug)}`).then(r=>r.product);
+export const getProductsByIds=(ids=[])=>{
+  const clean=[...new Set(ids.map(String).filter(Boolean))].slice(0,100);
+  if(!clean.length)return Promise.resolve([]);
+  return api(`/products-by-ids?ids=${encodeURIComponent(clean.join(','))}`).then(r=>r.products||[]);
+};
 
 export async function removeAdminProduct(id, headers = {}) {
   return api(

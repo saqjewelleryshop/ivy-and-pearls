@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { sensitiveLimiter } from '../middleware/security.js';
 import { supabaseAdmin, getUserFromRequest, requireUser, requireAdmin } from '../lib/supabase.js';
-import { listProducts, getProductBySlug, listJournal, getJournalPost, syncZqInventory } from '../services/catalog.js';
+import { listProducts, getProductBySlug, getProductsByIds, listJournal, getJournalPost, syncZqInventory } from '../services/catalog.js';
 import { createPayment, loadOrderFull, submitOrderToZq, syncOpenZqOrders } from '../services/orders.js';
 import { zq } from '../lib/zq.js';
 import { sendEmail } from '../services/email.js';
@@ -225,6 +225,14 @@ router.get('/products', async (req,res,next)=>{
       offset:Number(req.query.offset||0)
     });
     res.json({products});
+  }catch(e){next(e);}
+});
+
+
+router.get('/products-by-ids', async(req,res,next)=>{
+  try{
+    const ids=String(req.query.ids||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,100);
+    res.json({products:await getProductsByIds(ids)});
   }catch(e){next(e);}
 });
 
@@ -649,7 +657,7 @@ router.post('/admin/zq/import/:id', requireAdmin, async(req,res,next)=>{
         slug:restored.slug,
         status:restored.status,
         message:
-          'Archived Ivy & Pearls product restored from ZQ.'
+          'Archived Ivy & Pearls product restored from the international partner.'
       });
     }
 
@@ -664,7 +672,7 @@ router.post('/admin/zq/import/:id', requireAdmin, async(req,res,next)=>{
 
       return res.status(409).json({
         error:
-          'This ZQ product is already imported into Ivy & Pearls.',
+          'This international partner product is already imported into Ivy & Pearls.',
         productId:existing.id,
         status:existing.status
       });
@@ -1117,7 +1125,7 @@ router.post('/admin/zq/import/:id', requireAdmin, async(req,res,next)=>{
   }catch(error){
 
     console.error(
-      'ZQ IMPORT ERROR:',
+      'PARTNER IMPORT ERROR:',
       error
     );
 
@@ -1594,7 +1602,7 @@ router.post(
 
 router.post('/admin/products/:id/images', requireAdmin, async(req,res,next)=>{
   try{
-    const body=z.object({url:z.string().url(),alt_text:z.string().max(300).default(''),is_primary:z.boolean().default(false)}).parse(req.body);const db=supabaseAdmin();
+    const body=z.object({url:z.string().max(1000).refine(value=>value.startsWith('/media/')||/^https?:\/\//i.test(value),'Enter a valid media path or image URL.'),alt_text:z.string().max(300).default(''),is_primary:z.boolean().default(false)}).parse(req.body);const db=supabaseAdmin();
     if(body.is_primary)await db.from('product_images').update({is_primary:false}).eq('product_id',req.params.id);
     const {count}=await db.from('product_images').select('*',{count:'exact',head:true}).eq('product_id',req.params.id);
     const {data,error}=await db.from('product_images').insert({...body,product_id:req.params.id,sort_order:count||0}).select().single();if(error)throw error;res.status(201).json({image:data});
@@ -1762,7 +1770,7 @@ router.post('/admin/products/:id/sync-zq', requireAdmin, async(req,res,next)=>{
     const body=z.object({fields:z.array(z.enum(['inventory','cost','weight','supplier_status','images'])).min(1)}).parse(req.body);
     const db=supabaseAdmin();const {data:product,error}=await db.from('products').select('*,product_variants(*),product_images(*)').eq('id',req.params.id).single();if(error)throw error;
     const zqProductId=product.zq_product_id||product.product_variants?.find(v=>v.zq_product_id)?.zq_product_id;
-    if(!zqProductId)return res.status(400).json({error:'This product is not linked to a ZQ product.'});
+    if(!zqProductId)return res.status(400).json({error:'This product is not linked to an international partner product.'});
     const source=await zq.getImportProduct(zqProductId);const now=new Date().toISOString();
     const productPatch={zq_product_id:Number(zqProductId),zq_raw:source,zq_last_synced_at:now};
     if(body.fields.includes('supplier_status'))productPatch.zq_source_status=source.status||null;

@@ -20,6 +20,32 @@ app.set('trust proxy',1);
 app.use(securityHeaders);
 app.use(compression());
 app.use(cookieParser());
+app.use((req,res,next)=>{
+  // Preview deployments should never compete with the canonical .co.uk domain.
+  if(String(req.hostname||'').endsWith('.vercel.app')){
+    res.setHeader('X-Robots-Tag','noindex, nofollow');
+  }
+  next();
+});
+
+const legacyRedirects=new Map([
+  ['/terms-conditions/','/terms/'],
+  ['/terms-and-conditions/','/terms/'],
+  ['/shipping-returns/','/delivery-returns/'],
+  ['/shipping-and-returns/','/delivery-returns/'],
+  ['/returns-refunds/','/delivery-returns/'],
+  ['/returns/','/delivery-returns/'],
+  ['/about-us/','/our-story/'],
+  ['/contact-us/','/contact/']
+]);
+
+app.use((req,res,next)=>{
+  const direct=legacyRedirects.get(req.path);
+  if(direct)return res.redirect(301,direct);
+  const legacyCategory=req.path.match(/^\/product-category\/(rings|necklaces|earrings|bracelets)\/?$/i);
+  if(legacyCategory)return res.redirect(301,`/collections/${legacyCategory[1].toLowerCase()}/`);
+  next();
+});
 
 app.use('/api/webhooks',express.raw({type:'application/json',limit:'1mb'}),webhookRouter);
 
@@ -47,19 +73,20 @@ app.use('/api',apiLimiter,express.json({limit:'500kb'}),apiRouter);
 
 app.get('/robots.txt',(req,res)=>{
   const site=(process.env.SITE_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /api/\nSitemap: ${site}/sitemap.xml\n`);
+  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /wishlist/\nDisallow: /search/\nDisallow: /login/\nDisallow: /register/\nDisallow: /forgot-password/\nDisallow: /reset-password/\nDisallow: /order-confirmed/\nDisallow: /api/\nSitemap: ${site}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml',async(req,res,next)=>{
   try{
     const site=(process.env.SITE_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
-    const staticPages=['/','/shop/','/collections/','/new-arrivals/','/the-ivy-edit/','/our-story/','/journal/','/contact/','/delivery-returns/','/faqs/','/privacy-policy/','/terms/','/cookies/','/accessibility/'];
+    const staticPages=['/','/shop/','/collections/','/collections/rings/','/collections/necklaces/','/collections/earrings/','/collections/bracelets/','/new-arrivals/','/the-ivy-edit/','/our-story/','/journal/','/contact/','/delivery-returns/','/faqs/','/privacy-policy/','/terms/','/cookies/','/accessibility/'];
     let records={products:[],posts:[]};
     if(hasSupabase()) records=await sitemapRecords();
     const urls=[
       ...staticPages.map(loc=>({loc,lastmod:new Date().toISOString()})),
       ...records.products.map(p=>({loc:`/product/${p.slug}/`,lastmod:p.updated_at})),
-      ...records.posts.map(p=>({loc:`/journal/${p.slug}/`,lastmod:p.updated_at}))
+      ...records.posts.map(p=>({loc:`/journal/${p.slug}/`,lastmod:p.updated_at})),
+      ...['the-art-of-everyday-jewellery','how-to-layer-with-restraint','caring-for-the-pieces-you-wear-most'].filter(slug=>!records.posts.some(p=>p.slug===slug)).map(slug=>({loc:`/journal/${slug}/`,lastmod:'2026-09-03T00:00:00Z'}))
     ];
     const xml=`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u=>`  <url><loc>${site}${u.loc}</loc><lastmod>${new Date(u.lastmod).toISOString()}</lastmod></url>`).join('\n')}\n</urlset>`;
     res.type('application/xml').send(xml);
@@ -80,11 +107,23 @@ async function bootstrapForUrl(url){
   const collection=p.match(/^\/collections\/([^/]+)\/$/);
   if(collection)return {products:await listProducts({category:collection[1],limit:48}),collectionSlug:collection[1]};
   const product=p.match(/^\/product\/([^/]+)\/$/);
-  if(product)return {product:await getProductBySlug(product[1])};
+  if(product){
+    const item=await getProductBySlug(product[1]);
+    return item?{product:item}:{notFound:true};
+  }
   if(p==='/journal/')return {posts:await listJournal()};
   const post=p.match(/^\/journal\/([^/]+)\/$/);
-  if(post)return {post:await getJournalPost(post[1])};
-  return {};
+  if(post){
+    const item=await getJournalPost(post[1]);
+    // Journal has curated fallback articles in the React app.
+    if(item)return {post:item};
+    if(['the-art-of-everyday-jewellery','how-to-layer-with-restraint','caring-for-the-pieces-you-wear-most'].includes(post[1]))return {};
+    return {notFound:true};
+  }
+
+  const exactKnown=new Set(['/collections/','/checkout/','/order-confirmed/','/login/','/register/','/forgot-password/','/reset-password/','/account/','/account/addresses/','/our-story/','/contact/','/delivery-returns/','/faqs/','/privacy-policy/','/terms/','/cookies/','/accessibility/','/admin/','/wishlist/','/search/']);
+  const dynamicKnown=/^\/account\/orders\/[^/]+\/$/.test(p)||/^\/admin\/preview\/product\/[^/]+\/$/.test(p);
+  return exactKnown.has(p)||dynamicKnown?{}:{notFound:true};
 }
 
 let vite;

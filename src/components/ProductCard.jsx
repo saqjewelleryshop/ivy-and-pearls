@@ -28,7 +28,7 @@ export default function ProductCard({product}){
       );
 
       setWished(
-        saved.includes(product.id)
+        saved.map(String).includes(String(product.id))
       );
 
     }catch{
@@ -50,12 +50,12 @@ export default function ProductCard({product}){
       );
 
       const exists=
-        saved.includes(product.id);
+        saved.map(String).includes(String(product.id));
 
 
       const next=exists
-        ? saved.filter(id=>id!==product.id)
-        : [...saved,product.id];
+        ? saved.map(String).filter(id=>id!==String(product.id))
+        : [...saved.map(String),String(product.id)];
 
 
       localStorage.setItem(
@@ -208,32 +208,16 @@ export default function ProductCard({product}){
       {/* QUICK ADD */}
 
       {variant&&(
-
-        <button
-          type="button"
-
-          className="quick-add"
-
-          disabled={
-            variant.inventory_quantity<1
-          }
-
-          onClick={()=>
-            cart.add(
-              product,
-              variant,
-              1
-            )
-          }
-        >
-
-          {variant.inventory_quantity<1
-            ? 'Out of stock'
-            : 'Quick add +'
-          }
-
-        </button>
-
+        product.variants?.length>1
+          ? <Link className="quick-add quick-add--link" to={`/product/${product.slug}/`}>View options</Link>
+          : <button
+              type="button"
+              className="quick-add"
+              disabled={variant.inventory_quantity<1&&!variant.allow_backorder}
+              onClick={()=>cart.add(product,variant,1)}
+            >
+              {variant.inventory_quantity<1&&!variant.allow_backorder?'Out of stock':'Quick add +'}
+            </button>
       )}
 
     </article>
