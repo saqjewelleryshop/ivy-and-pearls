@@ -27,7 +27,7 @@ import Terms from './pages/Terms';
 import Cookies from './pages/Cookies';
 import Accessibility from './pages/Accessibility';
 import Admin from './pages/Admin';
-import Wishlist from './pages/Wishlist';
+import Wishlist from './pages/Wshlist';
 import NotFound from './pages/NotFound';
 import ScrollToTop from './components/ScrollToTop';
 
@@ -38,7 +38,6 @@ export default function App(){
         <Routes>
             <Route path="/" element={<Home/>}/>
             <Route path="/shop/" element={<Shop/>}/>
-            <Route path="/search/" element={<Shop/>}/>
             <Route path="/collections/" element={<Collections/>}/>
             <Route path="/collections/:slug/" element={<Collection/>}/>
             <Route path="/new-arrivals/" element={<Shop mode="new"/>}/>

@@ -101,7 +101,7 @@ async function bootstrapForUrl(url) {
     const products = await listProducts({ limit: 16 });
     return { homeProducts: products };
   }
-  if (p === '/shop/' || p === '/search/' || p === '/new-arrivals/' || p === '/the-ivy-edit/' || p === '/most-loved/') {
+  if (p === '/shop/' || p === '/new-arrivals/' || p === '/the-ivy-edit/' || p === '/most-loved/') {
     return { products: await listProducts({ limit: 48, newArrival: p === '/new-arrivals/', ivyEdit: p === '/the-ivy-edit/' || p === '/most-loved/' }) };
   }
   const collection = p.match(/^\/collections\/([^/]+)\/$/);

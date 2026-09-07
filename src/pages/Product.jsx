@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Link,useParams} from 'react-router-dom';
 import Seo from '../components/Seo';
 import ProductGrid from '../components/ProductGrid';
@@ -23,7 +23,7 @@ export default function Product(){
   const [variantId,setVariantId]=useState(null);
   const [qty,setQty]=useState(1);
   const [activeImage,setActiveImage]=useState(0);
-  const [manualImage,setManualImage]=useState(false);
+  const touchStartX=useRef(null);
 
   useEffect(()=>{
     if(!product){
@@ -65,12 +65,29 @@ export default function Product(){
 
 
   const variantImage=
-  variant?.image_url || null;
+    variant?.image_url || null;
 
+  const galleryImages=useMemo(()=>{
+    const productImages=[...(product?.images||[])];
+
+    if(!variantImage){
+      return productImages;
+    }
+
+    const variantEntry={
+      id:`variant-${variant?.id}`,
+      url:variantImage,
+      alt_text:`${product?.title||'Product'} - ${variant?.title||'variant'}`
+    };
+
+    return [
+      variantEntry,
+      ...productImages.filter(image=>image.url!==variantImage)
+    ];
+  },[product?.images,product?.title,variant?.id,variant?.title,variantImage]);
 
   useEffect(()=>{
     setActiveImage(0);
-    setManualImage(false);
   },[variant?.id]);
 
 
@@ -94,15 +111,52 @@ export default function Product(){
   );
 
   const image=
-  !manualImage && variantImage
-    ? {
-        id:`variant-${variant?.id}`,
-        url:variantImage,
-        alt_text:
-          `${product.title} - ${variant?.title||'variant'}`
-      }
-    : images[activeImage]||
-      images[0];
+    galleryImages[activeImage]||
+    galleryImages[0]||
+    images[0];
+
+  function showPreviousImage(){
+    if(galleryImages.length<2)return;
+    setActiveImage(index=>
+      index===0
+        ? galleryImages.length-1
+        : index-1
+    );
+  }
+
+  function showNextImage(){
+    if(galleryImages.length<2)return;
+    setActiveImage(index=>
+      index>=galleryImages.length-1
+        ? 0
+        : index+1
+    );
+  }
+
+  function handleTouchStart(event){
+    touchStartX.current=event.touches?.[0]?.clientX??null;
+  }
+
+  function handleTouchEnd(event){
+    if(touchStartX.current==null)return;
+
+    const endX=event.changedTouches?.[0]?.clientX;
+    if(endX==null){
+      touchStartX.current=null;
+      return;
+    }
+
+    const distance=endX-touchStartX.current;
+    touchStartX.current=null;
+
+    if(Math.abs(distance)<45)return;
+
+    if(distance<0){
+      showNextImage();
+    }else{
+      showPreviousImage();
+    }
+  }
 
   
   const inStock=
@@ -122,7 +176,7 @@ export default function Product(){
       product.description,
 
     image:
-      images.map(i=>i.url),
+      galleryImages.map(i=>i.url),
 
     sku:
       variant?.sku,
@@ -273,7 +327,11 @@ export default function Product(){
 
           <div className="luxury-gallery">
 
-            <div className="luxury-gallery__main">
+            <div
+              className="luxury-gallery__main"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
 
               {image
                 ? (
@@ -303,6 +361,12 @@ export default function Product(){
                 )
               }
 
+              {galleryImages.length>1&&(
+                <span className="luxury-gallery__counter" aria-hidden="true">
+                  {activeImage+1} / {galleryImages.length}
+                </span>
+              )}
+
             </div>
 
 
@@ -320,14 +384,16 @@ export default function Product(){
                     }
 
                     className={
-                      index===activeImage
+                      image?.url===im.url
                         ? 'is-active'
                         : ''
                     }
 
                     onClick={()=>{
-                      setActiveImage(index);
-                      setManualImage(true);
+                      const galleryIndex=galleryImages.findIndex(
+                        galleryImage=>galleryImage.url===im.url
+                      );
+                      setActiveImage(galleryIndex>=0?galleryIndex:0);
                     }}
 
                     aria-label={

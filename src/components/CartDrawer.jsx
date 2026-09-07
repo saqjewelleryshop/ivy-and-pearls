@@ -1,6 +1,12 @@
-import React from 'react';import {Link} from 'react-router-dom';import {useCart} from '../context/CartContext';import {money} from '../lib/format';
+import React,{useEffect} from 'react';import {Link} from 'react-router-dom';import {useCart} from '../context/CartContext';import {money} from '../lib/format';
 export default function CartDrawer(){const c=useCart();const total=c.items.reduce((s,i)=>s+i.variant.price_minor*i.quantity,0);
- return <><button className={`drawer-backdrop ${c.open?'is-open':''}`} onClick={()=>c.setOpen(false)} aria-label="Close bag"/><aside className={`cart-drawer ${c.open?'is-open':''}`} aria-hidden={!c.open}>
+ useEffect(()=>{
+  if(!c.open)return;
+  const previousOverflow=document.body.style.overflow;
+  document.body.style.overflow='hidden';
+  return()=>{document.body.style.overflow=previousOverflow};
+ },[c.open]);
+ return <><button className={`drawer-backdrop ${c.open?'is-open':''}`} onClick={()=>c.setOpen(false)} aria-label="Close bag"/><aside className={`cart-drawer ${c.open?'is-open':''}`} aria-hidden={!c.open} role="dialog" aria-modal="true" aria-label="Shopping bag">
  <div className="cart-drawer__head"><h2>Your bag</h2><button onClick={()=>c.setOpen(false)} aria-label="Close">×</button></div>
  <div className="cart-drawer__items">{c.items.length?c.items.map(i=><div className="cart-item" key={i.variant.id}>
   {i.product.images?.[0]&&<img src={i.product.images[0].url} alt=""/>}<div><h3>{i.product.title}</h3><p>{i.variant.title}</p><p>{money(i.variant.price_minor)}</p>
