@@ -5,6 +5,42 @@ import { useCart } from '../context/CartContext';
 import AnnouncementBar from './AnnouncementBar';
 import { useAuth } from '../context/AuthContext';
 
+
+const HomeIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M3 10.8 12 3l9 7.8" />
+    <path d="M5.5 9.7V21h13V9.7" />
+    <path d="M9.5 21v-6h5v6" />
+  </svg>
+);
+
+const ShopIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M4 8h16l-1 13H5L4 8z" />
+    <path d="M8 8a4 4 0 0 1 8 0" />
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg
     width="21"
@@ -270,6 +306,43 @@ export default function Header() {
           </Link>
         </nav>
       </header>
+
+      <nav className="mobile-app-nav" aria-label="Mobile app navigation">
+        <NavLink to="/" end>
+          <HomeIcon />
+          <span>Home</span>
+        </NavLink>
+
+        <NavLink to="/shop/">
+          <ShopIcon />
+          <span>Shop</span>
+        </NavLink>
+
+        <NavLink to="/search/">
+          <SearchIcon />
+          <span>Search</span>
+        </NavLink>
+
+        <NavLink to="/wishlist/">
+          <span className="mobile-app-nav__icon-wrap">
+            <HeartIcon />
+            {wishlistCount>0&&<span className="mobile-app-nav__badge">{wishlistCount>99?'99+':wishlistCount}</span>}
+          </span>
+          <span>Saved</span>
+        </NavLink>
+
+        <button
+          type="button"
+          onClick={() => cart.setOpen(true)}
+          aria-label={`Shopping bag with ${cart.count} ${cart.count===1?'item':'items'}`}
+        >
+          <span className="mobile-app-nav__icon-wrap">
+            <BagIcon />
+            {cart.count>0&&<span className="mobile-app-nav__badge">{cart.count>99?'99+':cart.count}</span>}
+          </span>
+          <span>Bag</span>
+        </button>
+      </nav>
     </>
   );
 }
