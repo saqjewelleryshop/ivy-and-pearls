@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import {Link,useParams} from 'react-router-dom';
 import Seo from '../components/Seo';
 import ProductGrid from '../components/ProductGrid';
@@ -23,7 +23,6 @@ export default function Product(){
   const [variantId,setVariantId]=useState(null);
   const [qty,setQty]=useState(1);
   const [activeImage,setActiveImage]=useState(0);
-  const touchStartX=useRef(null);
 
   useEffect(()=>{
     if(!product){
@@ -63,32 +62,27 @@ export default function Product(){
     [product,variantId]
   );
 
+  console.log('PRODUCT VARIANTS:',product?.variants);
+  console.log('SELECTED VARIANT:',variant);
+  console.log('VARIANT IMAGE:',variant?.image_url);
 
   const variantImage=
-    variant?.image_url || null;
+  variant?.image_url || null;
 
-  const galleryImages=useMemo(()=>{
-    const productImages=[...(product?.images||[])];
-
-    if(!variantImage){
-      return productImages;
-    }
-
-    const variantEntry={
-      id:`variant-${variant?.id}`,
-      url:variantImage,
-      alt_text:`${product?.title||'Product'} - ${variant?.title||'variant'}`
-    };
-
-    return [
-      variantEntry,
-      ...productImages.filter(image=>image.url!==variantImage)
-    ];
-  },[product?.images,product?.title,variant?.id,variant?.title,variantImage]);
 
   useEffect(()=>{
-    setActiveImage(0);
-  },[variant?.id]);
+
+  /*
+   * Whenever the customer selects another variant,
+   * reset the gallery to image 0.
+   *
+   * Because displayImages places the selected
+   * variant image first, image 0 becomes the
+   * correct variant image.
+   */
+  setActiveImage(0);
+
+},[variant?.id]);
 
 
   if(!product){
@@ -111,52 +105,15 @@ export default function Product(){
   );
 
   const image=
-    galleryImages[activeImage]||
-    galleryImages[0]||
-    images[0];
-
-  function showPreviousImage(){
-    if(galleryImages.length<2)return;
-    setActiveImage(index=>
-      index===0
-        ? galleryImages.length-1
-        : index-1
-    );
-  }
-
-  function showNextImage(){
-    if(galleryImages.length<2)return;
-    setActiveImage(index=>
-      index>=galleryImages.length-1
-        ? 0
-        : index+1
-    );
-  }
-
-  function handleTouchStart(event){
-    touchStartX.current=event.touches?.[0]?.clientX??null;
-  }
-
-  function handleTouchEnd(event){
-    if(touchStartX.current==null)return;
-
-    const endX=event.changedTouches?.[0]?.clientX;
-    if(endX==null){
-      touchStartX.current=null;
-      return;
-    }
-
-    const distance=endX-touchStartX.current;
-    touchStartX.current=null;
-
-    if(Math.abs(distance)<45)return;
-
-    if(distance<0){
-      showNextImage();
-    }else{
-      showPreviousImage();
-    }
-  }
+  variantImage
+    ? {
+        id:`variant-${variant?.id}`,
+        url:variantImage,
+        alt_text:
+          `${product.title} - ${variant?.title||'variant'}`
+      }
+    : images[activeImage]||
+      images[0];
 
   
   const inStock=
@@ -176,7 +133,7 @@ export default function Product(){
       product.description,
 
     image:
-      galleryImages.map(i=>i.url),
+      images.map(i=>i.url),
 
     sku:
       variant?.sku,
@@ -327,11 +284,7 @@ export default function Product(){
 
           <div className="luxury-gallery">
 
-            <div
-              className="luxury-gallery__main"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
+            <div className="luxury-gallery__main">
 
               {image
                 ? (
@@ -361,12 +314,6 @@ export default function Product(){
                 )
               }
 
-              {galleryImages.length>1&&(
-                <span className="luxury-gallery__counter" aria-hidden="true">
-                  {activeImage+1} / {galleryImages.length}
-                </span>
-              )}
-
             </div>
 
 
@@ -384,17 +331,14 @@ export default function Product(){
                     }
 
                     className={
-                      image?.url===im.url
+                      index===activeImage
                         ? 'is-active'
                         : ''
                     }
 
-                    onClick={()=>{
-                      const galleryIndex=galleryImages.findIndex(
-                        galleryImage=>galleryImage.url===im.url
-                      );
-                      setActiveImage(galleryIndex>=0?galleryIndex:0);
-                    }}
+                    onClick={()=>
+                      setActiveImage(index)
+                    }
 
                     aria-label={
                       `View ${index+1}`

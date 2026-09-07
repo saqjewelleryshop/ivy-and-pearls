@@ -7,7 +7,12 @@ import {HOME} from '../lib/content';
 export default function CinematicHero(){
  const ref=useRef(null);
  useLayoutEffect(()=>{
-  if(typeof window==='undefined'||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  if(typeof window==='undefined')return;
+  const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const mobile=window.matchMedia('(max-width: 767px)').matches;
+  // Mobile intentionally uses a stable, app-like static hero.
+  // ScrollTrigger pinning is desktop/tablet only.
+  if(reduceMotion||mobile){document.body.classList.remove('ip-cinematic-active');return;}
   gsap.registerPlugin(ScrollTrigger);
   const hero=ref.current;if(!hero)return;
   const ctx=gsap.context(()=>{
