@@ -1,30 +1,46 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build:client",
+  "version": 2,
+  "buildCommand": "npm run build",
   "outputDirectory": "dist/client",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index.js" },
-    { "source": "/media/:path*", "destination": "/api/index.js" },
-    { "source": "/healthz", "destination": "/api/index.js" },
-    { "source": "/readyz", "destination": "/api/index.js" },
-    { "source": "/robots.txt", "destination": "/api/index.js" },
-    { "source": "/sitemap.xml", "destination": "/api/index.js" },
-    { "source": "/.well-known/security.txt", "destination": "/api/index.js" },
-    { "source": "/:path*", "destination": "/index.html" }
+  "redirects": [
+    {"source": "/terms-conditions/", "destination": "/terms/", "permanent": true},
+    {"source": "/product-category/rings/", "destination": "/collections/rings/", "permanent": true},
+    {"source": "/product-category/necklaces/", "destination": "/collections/necklaces/", "permanent": true},
+    {"source": "/product-category/earrings/", "destination": "/collections/earrings/", "permanent": true},
+    {"source": "/product-category/bracelets/", "destination": "/collections/bracelets/", "permanent": true}
   ],
-  "headers": [
-    {
-      "source": "/assets/:path*",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
-    },
-    {
-      "source": "/images/:path*",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }]
-    }
+  "rewrites": [
+    {"source": "/api/:path*", "destination": "/api/index.js"},
+    {"source": "/media/:path*", "destination": "/api/index.js"},
+    {"source": "/robots.txt", "destination": "/api/index.js"},
+    {"source": "/sitemap.xml", "destination": "/api/index.js"},
+    {"source": "/", "destination": "/api/index.js"},
+    {"source": "/shop/", "destination": "/api/index.js"},
+    {"source": "/search/", "destination": "/api/index.js"},
+    {"source": "/collections/", "destination": "/api/index.js"},
+    {"source": "/collections/:path*", "destination": "/api/index.js"},
+    {"source": "/new-arrivals/", "destination": "/api/index.js"},
+    {"source": "/the-ivy-edit/", "destination": "/api/index.js"},
+    {"source": "/most-loved/", "destination": "/api/index.js"},
+    {"source": "/product/:path*", "destination": "/api/index.js"},
+    {"source": "/our-story/", "destination": "/api/index.js"},
+    {"source": "/journal/", "destination": "/api/index.js"},
+    {"source": "/journal/:path*", "destination": "/api/index.js"},
+    {"source": "/contact/", "destination": "/api/index.js"},
+    {"source": "/delivery-returns/", "destination": "/api/index.js"},
+    {"source": "/faqs/", "destination": "/api/index.js"},
+    {"source": "/privacy-policy/", "destination": "/api/index.js"},
+    {"source": "/terms/", "destination": "/api/index.js"},
+    {"source": "/cookies/", "destination": "/api/index.js"},
+    {"source": "/accessibility/", "destination": "/api/index.js"},
+    {"source": "/login/", "destination": "/api/index.js"},
+    {"source": "/register/", "destination": "/api/index.js"},
+    {"source": "/forgot-password/", "destination": "/api/index.js"},
+    {"source": "/reset-password/", "destination": "/api/index.js"},
+    {"source": "/account/:path*", "destination": "/api/index.js"},
+    {"source": "/checkout/", "destination": "/api/index.js"},
+    {"source": "/order-confirmed/", "destination": "/api/index.js"},
+    {"source": "/wishlist/", "destination": "/api/index.js"},
+    {"source": "/admin/:path*", "destination": "/api/index.js"}
   ]
 }

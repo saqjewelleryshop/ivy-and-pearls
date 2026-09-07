@@ -1,42 +1,64 @@
 import 'dotenv/config';
-import {validateProductionEnv} from '../server/lib/env.js';
-import {requestId,log,requestContext} from '../server/lib/logger.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { securityHeaders, apiLimiter } from '../server/middleware/security.js';
 import apiRouter from '../server/routes/api.js';
 import webhookRouter from '../server/routes/webhooks.js';
+import { listProducts, getProductBySlug, listJournal, getJournalPost, sitemapRecords } from '../server/services/catalog.js';
 import { hasSupabase, supabaseAdmin } from '../server/lib/supabase.js';
-import {STATIC_SITEMAP_PAGES,LEGACY_REDIRECTS} from '../server/lib/site-routes.js';
-import { sitemapRecords } from '../server/services/catalog.js';
+import { createRequire } from 'node:module';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, '..');
+const require = createRequire(import.meta.url);
+
+// Cache template and renderer
+let cachedTemplate = null;
+let cachedRender = null;
+
+async function getRenderer() {
+  if (cachedTemplate && cachedRender) {
+    return { template: cachedTemplate, render: cachedRender };
+  }
+  
+  const fs = await import('node:fs');
+  const template = await fs.promises.readFile(path.join(root, 'dist/client/index.html'), 'utf8');
+  const { render } = await import(path.join(root, 'dist/server/entry-server.js'));
+  
+  cachedTemplate = template;
+  cachedRender = render;
+  
+  return { template, render };
+}
 
 // Create Express app for function
-const envStatus=validateProductionEnv();
-if(!envStatus.ok){
-  console.warn('[config] Production configuration issues:', envStatus.issues.join('; '));
-}
 const app = express();
-app.use(requestId);
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
-app.use(securityHeaders);
-app.use(compression());
-app.use(cookieParser());
-app.use((req,res,next)=>{const started=Date.now();res.on('finish',()=>log('info','request.completed',{...requestContext(req),status:res.statusCode,durationMs:Date.now()-started}));next();});
 app.use((req,res,next)=>{
   if(String(req.hostname||'').endsWith('.vercel.app')){
     res.setHeader('X-Robots-Tag','noindex, nofollow');
   }
   next();
 });
+app.use(securityHeaders);
+app.use(compression());
+app.use(cookieParser());
 
-const legacyRedirects=LEGACY_REDIRECTS;
+// Legacy WordPress URL migration: permanent redirects preserve SEO equity.
+const legacyRedirects=new Map([
+  ['/terms-conditions/','/terms/'],
+  ['/product-category/rings/','/collections/rings/'],
+  ['/product-category/necklaces/','/collections/necklaces/'],
+  ['/product-category/earrings/','/collections/earrings/'],
+  ['/product-category/bracelets/','/collections/bracelets/']
+]);
 app.use((req,res,next)=>{
-  const direct=legacyRedirects.get(req.path);
-  if(direct)return res.redirect(301,direct);
-  const legacyCategory=req.path.match(/^\/product-category\/(rings|necklaces|earrings|bracelets)\/?$/i);
-  if(legacyCategory)return res.redirect(301,`/collections/${legacyCategory[1].toLowerCase()}/`);
+  const destination=legacyRedirects.get(req.path);
+  if(destination)return res.redirect(301,destination);
   next();
 });
 
@@ -67,65 +89,80 @@ app.get('/media/:filename', async (req, res, next) => {
 app.use('/api', apiLimiter, express.json({ limit: '500kb' }), apiRouter);
 
 // Static files (robots.txt, sitemap.xml)
-app.get('/healthz',(req,res)=>res.status(200).json({status:'ok'}));
-app.get('/readyz',(req,res)=>{
-  const ready=hasSupabase();
-  return res.status(ready?200:503).json({
-    status:ready?'ready':'configuration_required',
-    supabase:ready,
-    configuration:envStatus.ok?'ok':'incomplete',
-    configurationIssues:envStatus.issues
-  });
-});
-
 app.get('/robots.txt', (req, res) => {
-  const site = (process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.FRONTEND_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
-  res.set('Cache-Control','public, max-age=3600').type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /wishlist/\nDisallow: /search/\nDisallow: /login/\nDisallow: /register/\nDisallow: /forgot-password/\nDisallow: /reset-password/\nDisallow: /order-confirmed/\nDisallow: /api/\nSitemap: ${site}/sitemap.xml\n`);
-});
-
-app.get('/.well-known/security.txt',(req,res)=>{
-  const site=(process.env.SITE_URL||process.env.VITE_SITE_URL||process.env.FRONTEND_URL||'https://ivyandpearls.co.uk').replace(/\/$/,'');
-  res.type('text/plain').set('Cache-Control','public, max-age=86400').send(`Contact: mailto:clientcare@ivyandpearls.co.uk\nPreferred-Languages: en\nCanonical: ${site}/.well-known/security.txt\nPolicy: ${site}/security/\n`);
+  const site = (process.env.SITE_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
+  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /api/\nDisallow: /login/\nDisallow: /register/\nDisallow: /forgot-password/\nDisallow: /reset-password/\nDisallow: /order-confirmed/\nDisallow: /wishlist/\nDisallow: /search/\nSitemap: ${site}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml', async (req, res, next) => {
   try {
-    const site = (process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.FRONTEND_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
-    const staticPages=STATIC_SITEMAP_PAGES;
+    const site = (process.env.SITE_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
+    const staticPages = ['/', '/shop/', '/collections/', '/collections/rings/', '/collections/necklaces/', '/collections/earrings/', '/collections/bracelets/', '/new-arrivals/', '/the-ivy-edit/', '/our-story/', '/journal/', '/contact/', '/delivery-returns/', '/faqs/', '/privacy-policy/', '/terms/', '/cookies/', '/accessibility/'];
     let records = { products: [], posts: [] };
     if (hasSupabase()) records = await sitemapRecords();
     const urls = [
-      ...staticPages.map(loc => ({ loc })),
+      ...staticPages.map(loc => ({ loc, lastmod: new Date().toISOString() })),
       ...records.products.map(p => ({ loc: `/product/${p.slug}/`, lastmod: p.updated_at })),
-      ...records.posts.map(p => ({ loc: `/journal/${p.slug}/`, lastmod: p.updated_at })),
-      ...['the-art-of-everyday-jewellery','how-to-layer-with-restraint','caring-for-the-pieces-you-wear-most'].filter(slug=>!records.posts.some(p=>p.slug===slug)).map(slug=>({loc:`/journal/${slug}/`,lastmod:'2026-09-03T00:00:00Z'}))
+      ...records.posts.map(p => ({ loc: `/journal/${p.slug}/`, lastmod: p.updated_at }))
     ];
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${site}${u.loc}</loc>${u.lastmod?`<lastmod>${new Date(u.lastmod).toISOString()}</lastmod>`:''}</url>`).join('\n')}\n</urlset>`;
-    res.set('Cache-Control','public, max-age=3600, stale-while-revalidate=86400').type('application/xml').send(xml);
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${site}${u.loc}</loc><lastmod>${new Date(u.lastmod).toISOString()}</lastmod></url>`).join('\n')}\n</urlset>`;
+    res.type('application/xml').send(xml);
   } catch (e) {
     next(e);
   }
 });
 
-// Client-side config endpoint — exposes only frontend-safe env vars
-app.get('/api/config', (req, res) => {
-  const config = {
-    supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-    supabaseKey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY,
-    siteUrl: process.env.SITE_URL || process.env.VITE_SITE_URL || process.env.FRONTEND_URL,
-  };
-  // Reject if critical client config is missing
-  if (!config.supabaseUrl || !config.supabaseKey) {
-    return res.status(503).json({ error: 'Client configuration incomplete', issues: envStatus.issues });
+// SSR handler
+async function bootstrapForUrl(url) {
+  if (!hasSupabase()) return { configurationPending: true };
+  const u = new URL(url, process.env.SITE_URL || 'https://ivyandpearls.co.uk');
+  const p = u.pathname;
+  if (p === '/') {
+    const products = await listProducts({ limit: 16 });
+    return { homeProducts: products };
   }
-  return res.status(200).json(config);
-});
+  if (p === '/shop/' || p === '/new-arrivals/' || p === '/the-ivy-edit/' || p === '/most-loved/') {
+    return { products: await listProducts({ limit: 48, newArrival: p === '/new-arrivals/', ivyEdit: p === '/the-ivy-edit/' || p === '/most-loved/' }) };
+  }
+  const collection = p.match(/^\/collections\/([^/]+)\/$/);
+  if (collection) return { products: await listProducts({ category: collection[1], limit: 48 }), collectionSlug: collection[1] };
+  const product = p.match(/^\/product\/([^/]+)\/$/);
+  if (product) return { product: await getProductBySlug(product[1]) };
+  if (p === '/journal/') return { posts: await listJournal() };
+  const post = p.match(/^\/journal\/([^/]+)\/$/);
+  if (post) return { post: await getJournalPost(post[1]) };
+  return {};
+}
 
-// Storefront pages are served by Vercel's static Vite output.
-// This function intentionally handles APIs and machine-readable endpoints only.
-app.use((req,res,next)=>{
-  if(req.path.startsWith('/api/')) return next();
-  return res.status(404).json({error:'Not found'});
+app.use(async (req, res, next) => {
+  try {
+    const url = req.originalUrl;
+    console.log('[SSR] Request:', url);
+    
+    const data = await bootstrapForUrl(url).catch(e => {
+      console.error('[SSR] Bootstrap error', e);
+      return { ssrError: true, error: e.message };
+    });
+    
+    const { template, render } = await getRenderer();
+    
+    const result = render(url, data);
+    const helmet = result.helmet;
+    const head = [
+      helmet?.title?.toString() || '',
+      helmet?.meta?.toString() || '',
+      helmet?.link?.toString() || '',
+      helmet?.script?.toString() || ''
+    ].join('');
+    const bootstrap = `<script>window.__IVY_BOOTSTRAP__=${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
+    const out = template.replace('<!--app-head-->', head).replace('<!--app-html-->', result.html).replace('<!--bootstrap-->', bootstrap);
+    
+    console.log('[SSR] Sending response, status:', result.status || 200);
+    res.status(result.status || 200).type('html').send(out);
+  } catch (e) {
+    console.error('[SSR] Error:', e);
+    next(e);
+  }
 });
 
 app.use((err, req, res, next) => {

@@ -1,21 +1,15 @@
-const BASE_URL = String(process.env.PARTNER_BASE_URL||process.env.ZQ_BASE_URL||'').replace(/\/$/, '');
+const BASE_URL = (process.env.ZQ_BASE_URL || 'https://system.zqdropshipping.com/api/v2').replace(/\/$/, '');
 
 function apiKey() {
-  const key=process.env.PARTNER_API_KEY||process.env.ZQ_API_KEY;
-  if (!key) {
-    const err = new Error('International partner API credentials are not configured.');
-    err.code = 'PARTNER_NOT_CONFIGURED';
+  if (!process.env.ZQ_API_KEY) {
+    const err = new Error('ZQ_API_KEY is not configured.');
+    err.code = 'ZQ_NOT_CONFIGURED';
     throw err;
   }
-  return key;
+  return process.env.ZQ_API_KEY;
 }
 
 async function zqFetch(path, options = {}) {
-  if(!BASE_URL){
-    const err=new Error('International partner API base URL is not configured.');
-    err.code='PARTNER_BASE_URL_NOT_CONFIGURED';
-    throw err;
-  }
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
@@ -30,7 +24,7 @@ async function zqFetch(path, options = {}) {
   try { body = await response.json(); } catch { body = null; }
 
   if (!response.ok || !body || body.code !== 200) {
-    const err = new Error(body?.message || `International partner API request failed (${response.status}).`);
+    const err = new Error(body?.message || `ZQ API request failed (${response.status}).`);
     err.status = response.status;
     err.payload = body;
     throw err;
@@ -77,7 +71,7 @@ export const zq = {
     return zqFetch(`/openapi/import_product/${encodeURIComponent(id)}`);
   },
 
-  getInternationalShipping({ countryCode, fromCountryCode = process.env.PARTNER_ORIGIN_COUNTRY_CODE||'', weight, quantity = 1, attributeName = 'GENERAL' }) {
+  getInternationalShipping({ countryCode, fromCountryCode = 'CN', weight, quantity = 1, attributeName = 'GENERAL' }) {
     const q = new URLSearchParams({
       countryCode,
       fromCountryCode,

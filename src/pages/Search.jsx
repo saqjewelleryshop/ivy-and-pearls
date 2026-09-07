@@ -1,60 +1,51 @@
-import React,{useEffect,useMemo,useState} from 'react';
-import {useSearchParams} from 'react-router-dom';
+import React,{useEffect,useState} from 'react';
 import Seo from '../components/Seo';
 import ProductGrid from '../components/ProductGrid';
 import {getProducts} from '../lib/api';
 
 export default function Search(){
-  const [params,setParams]=useSearchParams();
-  const initial=params.get('q')||'';
-  const [query,setQuery]=useState(initial);
+  const [query,setQuery]=useState('');
   const [products,setProducts]=useState([]);
-  const [loading,setLoading]=useState(Boolean(initial));
+  const [loading,setLoading]=useState(false);
 
   useEffect(()=>{
-    const q=params.get('q')||'';
-    setQuery(q);
-    if(!q.trim()){
+    const q=query.trim();
+    if(q.length<2){
       setProducts([]);
-      setLoading(false);
       return;
     }
-    setLoading(true);
-    getProducts({q:q.trim(),limit:48})
-      .then(setProducts)
-      .catch(()=>setProducts([]))
-      .finally(()=>setLoading(false));
-  },[params]);
 
-  const countLabel=useMemo(()=>{
-    if(loading)return 'Searching…';
-    if(!initial&&!params.get('q'))return 'Enter a search term';
-    return `${products.length} ${products.length===1?'piece':'pieces'}`;
-  },[loading,products.length,initial,params]);
+    const timer=setTimeout(async()=>{
+      setLoading(true);
+      try{
+        setProducts(await getProducts({q,limit:48}));
+      }catch{
+        setProducts([]);
+      }finally{
+        setLoading(false);
+      }
+    },250);
 
-  function submit(event){
-    event.preventDefault();
-    const q=query.trim();
-    setParams(q?{q}:{});
-  }
+    return()=>clearTimeout(timer);
+  },[query]);
 
   return <>
-    <Seo title="Search" description="Search the Ivy & Pearls jewellery collection." path="/search/" noindex/>
-    <section className="page-hero page-hero--search">
+    <Seo title="Search" description="Search Ivy & Pearls jewellery." path="/search/" noindex/>
+    <section className="page-hero search-hero">
       <div className="container">
-        <p className="eyebrow">Find a piece</p>
-        <h1>Search the <em>collection.</em></h1>
-        <form className="search-page__form" onSubmit={submit} role="search">
-          <label className="sr-only" htmlFor="site-search">Search jewellery</label>
-          <input id="site-search" autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rings, bracelets, moissanite…"/>
-          <button className="button button--dark" type="submit">Search</button>
-        </form>
+        <p className="eyebrow">Search</p>
+        <h1>Find your <em>piece.</em></h1>
+        <label className="search-page__field">
+          <span className="sr-only">Search jewellery</span>
+          <input autoFocus type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search rings, bracelets, necklaces…"/>
+        </label>
       </div>
     </section>
-    <section className="section search-page__results">
+    <section className="section">
       <div className="container">
-        <div className="search-page__meta"><span>{countLabel}</span>{params.get('q')&&<span>for “{params.get('q')}”</span>}</div>
-        {loading?<div className="loading-page">Searching the collection…</div>:products.length?<ProductGrid products={products}/>:params.get('q')?<div className="empty-state"><h2>No pieces found.</h2><p>Try a different material, category or style.</p></div>:null}
+        {loading?<div className="empty-state">Searching…</div>:
+          query.trim().length<2?<div className="empty-state"><h2>Start typing to search.</h2></div>:
+          products.length?<ProductGrid products={products}/>:<div className="empty-state"><h2>No pieces found.</h2><p>Try another product name or category.</p></div>}
       </div>
     </section>
   </>;

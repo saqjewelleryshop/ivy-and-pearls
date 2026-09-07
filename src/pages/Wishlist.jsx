@@ -3,7 +3,7 @@ import {Link} from 'react-router-dom';
 
 import Seo from '../components/Seo';
 import ProductGrid from '../components/ProductGrid';
-import {getProductsByIds} from '../lib/api';
+import {getProducts} from '../lib/api';
 
 const WISHLIST_KEY='ivyandpearls_wishlist';
 
@@ -27,10 +27,33 @@ export default function Wishlist(){
       }
 
 
-      const normalizedIds=ids.map(String);
-      const savedProducts=await getProductsByIds(normalizedIds);
-      const order=new Map(normalizedIds.map((id,index)=>[id,index]));
-      savedProducts.sort((a,b)=>(order.get(String(a.id))??999)-(order.get(String(b.id))??999));
+      /*
+       * Load live products from the catalogue,
+       * then only keep those saved by the customer.
+       */
+      const catalogue=
+        await getProducts({
+          limit:60
+        });
+
+
+      const savedProducts=
+        catalogue.filter(
+          product=>
+            ids.includes(product.id)
+        );
+
+
+      /*
+       * Preserve the order they were added to wishlist.
+       */
+      savedProducts.sort(
+        (a,b)=>
+          ids.indexOf(a.id)-
+          ids.indexOf(b.id)
+      );
+
+
       setProducts(savedProducts);
 
 

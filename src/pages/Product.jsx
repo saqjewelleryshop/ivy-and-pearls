@@ -1,7 +1,6 @@
-import React,{useEffect,useMemo,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import {Link,useParams} from 'react-router-dom';
 import Seo from '../components/Seo';
-import NotFound from './NotFound';
 import ProductGrid from '../components/ProductGrid';
 import {getProduct,getProducts} from '../lib/api';
 import {money} from '../lib/format';
@@ -24,12 +23,9 @@ export default function Product(){
   const [variantId,setVariantId]=useState(null);
   const [qty,setQty]=useState(1);
   const [activeImage,setActiveImage]=useState(0);
-  const [manualImage,setManualImage]=useState(false);
-  const [lightbox,setLightbox]=useState(false);
-  const touchStartX=useRef(null);
 
   useEffect(()=>{
-    if(!product&&!boot.notFound){
+    if(!product){
       getProduct(slug)
         .then(setProduct)
         .catch(()=>{});
@@ -73,15 +69,13 @@ export default function Product(){
 
   useEffect(()=>{
 
-  /* Reset to the primary gallery position when the selected option changes. */
+  /* Reset the gallery when a different option is chosen. */
   setActiveImage(0);
-  setManualImage(false);
 
 },[variant?.id]);
 
 
   if(!product){
-    if(boot.notFound)return <NotFound/>;
     return (
       <section className="loading-page">
         Loading piece…
@@ -90,20 +84,6 @@ export default function Product(){
   }
 
   const images=product.images||[];
-
-  const galleryImages=(()=>{
-    const variantEntry=variantImage
-      ? {
-          id:`variant-${variant?.id}`,
-          url:variantImage,
-          alt_text:`${product.title} - ${variant?.title||'variant'}`
-        }
-      : null;
-
-    return variantEntry
-      ? [variantEntry,...images.filter(item=>item?.url&&item.url!==variantImage)]
-      : images;
-  })();
 
   const attributes=product.attributes||[];
 
@@ -114,39 +94,18 @@ export default function Product(){
      attribute.values.length>0
   );
 
-  const displayedIndex=
-    !manualImage && variantImage
-      ? 0
-      : variantImage
-        ? Math.min(activeImage+1,Math.max(galleryImages.length-1,0))
-        : Math.min(activeImage,Math.max(galleryImages.length-1,0));
-
-  const image=galleryImages[displayedIndex]||galleryImages[0];
-
-  const moveGallery=(direction)=>{
-    if(galleryImages.length<2)return;
-    const nextIndex=(displayedIndex+direction+galleryImages.length)%galleryImages.length;
-
-    if(variantImage&&nextIndex===0){
-      setActiveImage(0);
-      setManualImage(false);
-      return;
-    }
-
-    setActiveImage(variantImage?nextIndex-1:nextIndex);
-    setManualImage(true);
-  };
+  const image=
+  variantImage
+    ? {
+        id:`variant-${variant?.id}`,
+        url:variantImage,
+        alt_text:
+          `${product.title} - ${variant?.title||'variant'}`
+      }
+    : images[activeImage]||
+      images[0];
 
   
-  const schemaImages=[...new Set([
-    ...images.map(i=>i.url).filter(Boolean),
-    ...(product.variants||[]).map(v=>v.image_url).filter(Boolean)
-  ])];
-
-  const hasFinishVariants=(product.variants||[]).some(v=>
-    /gold|silver|rose|white|finish|tone|colour|color/i.test(String(v.title||''))
-  );
-
   const inStock=
     variant &&
     (
@@ -163,7 +122,11 @@ export default function Product(){
       product.short_description||
       product.description,
 
-    image:schemaImages,
+    image:
+      [...new Set([
+        ...images.map(i=>i.url),
+        ...(product.variants||[]).map(v=>v.image_url).filter(Boolean)
+      ])],
 
     sku:
       variant?.sku,
@@ -314,9 +277,7 @@ export default function Product(){
 
           <div className="luxury-gallery">
 
-            <div className="luxury-gallery__main" onTouchStart={e=>{touchStartX.current=e.changedTouches?.[0]?.clientX??null;}} onTouchEnd={e=>{if(touchStartX.current==null)return;const delta=(e.changedTouches?.[0]?.clientX??touchStartX.current)-touchStartX.current;if(Math.abs(delta)>45)moveGallery(delta<0?1:-1);touchStartX.current=null;}}>
-
-              {galleryImages.length>1&&(<button type="button" className="luxury-gallery__arrow luxury-gallery__arrow--prev" aria-label="Previous product image" onClick={()=>moveGallery(-1)}><span aria-hidden="true">‹</span></button>)}
+            <div className="luxury-gallery__main">
 
               {image
                 ? (
@@ -339,19 +300,12 @@ export default function Product(){
                     }
 
                     loading="eager"
-                    onClick={()=>setLightbox(true)}
-                    className="luxury-gallery__hero-image"
                   />
                 )
                 : (
                   <div className="luxury-gallery__empty"/>
                 )
               }
-
-              {galleryImages.length>1&&(<button type="button" className="luxury-gallery__arrow luxury-gallery__arrow--next" aria-label="Next product image" onClick={()=>moveGallery(1)}><span aria-hidden="true">›</span></button>)}
-
-              {galleryImages.length>1&&(<div className="luxury-gallery__count" aria-live="polite">{displayedIndex+1} / {galleryImages.length}</div>)}
-              {image&&<button type="button" className="luxury-gallery__zoom" onClick={()=>setLightbox(true)} aria-label="Open full-screen image">⌕</button>}
 
             </div>
 
@@ -370,15 +324,14 @@ export default function Product(){
                     }
 
                     className={
-                      ((manualImage||!variantImage)&&index===activeImage)
+                      index===activeImage
                         ? 'is-active'
                         : ''
                     }
 
-                    onClick={()=>{
-                      setActiveImage(index);
-                      setManualImage(true);
-                    }}
+                    onClick={()=>
+                      setActiveImage(index)
+                    }
 
                     aria-label={
                       `View ${index+1}`
@@ -396,8 +349,6 @@ export default function Product(){
             )}
 
           </div>
-
-          {lightbox&&image&&<div className="product-lightbox" role="dialog" aria-modal="true" aria-label={`${product.title} image viewer`} onClick={()=>setLightbox(false)}><button type="button" className="product-lightbox__close" aria-label="Close image viewer" onClick={()=>setLightbox(false)}>×</button>{galleryImages.length>1&&<button type="button" className="product-lightbox__nav product-lightbox__nav--prev" aria-label="Previous image" onClick={e=>{e.stopPropagation();moveGallery(-1)}}>‹</button>}<img src={image.url} alt={image.alt_text||product.title} onClick={e=>e.stopPropagation()}/>{galleryImages.length>1&&<button type="button" className="product-lightbox__nav product-lightbox__nav--next" aria-label="Next image" onClick={e=>{e.stopPropagation();moveGallery(1)}}>›</button>}</div>}
 
 
           {/* ===================================================
@@ -486,8 +437,9 @@ export default function Product(){
                   <div className="luxury-variants__top">
 
                     <legend>
-                      {hasFinishVariants?'Finish':'Choose an option'}
+                      Choose an option
                     </legend>
+
 
                   </div>
 
@@ -520,11 +472,10 @@ export default function Product(){
 
                           disabled={unavailable}
 
-                          aria-pressed={variant?.id===v.id}
-
                           onClick={()=>
                             setVariantId(v.id)
                           }
+                          aria-pressed={variant?.id===v.id}
                         >
                           {v.title}
                         </button>
@@ -537,8 +488,6 @@ export default function Product(){
 
               )}
 
-
-              <div className="luxury-sizing-link"><Link to="/size-guide/">Need help choosing a size? <span>View the size guide →</span></Link></div>
 
               {/* ===============================================
                   STOCK
