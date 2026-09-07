@@ -22,8 +22,7 @@ export default function Product(){
   const [related,setRelated]=useState([]);
   const [variantId,setVariantId]=useState(null);
   const [qty,setQty]=useState(1);
-  const [galleryIndex,setGalleryIndex]=useState(0);
-  const [touchStartX,setTouchStartX]=useState(null);
+  const [activeImage,setActiveImage]=useState(0);
 
   useEffect(()=>{
     if(!product){
@@ -34,50 +33,25 @@ export default function Product(){
   },[slug]);
 
   useEffect(()=>{
-    if(!product)return;
+    if(product){
+      setVariantId(
+        v=>v||product.variants?.[0]?.id
+      );
 
-    setVariantId(
-      v=>v||product.variants?.[0]?.id
-    );
-
-    let cancelled=false;
-
-    async function loadRelated(){
-      try{
-        const categoryItems=await getProducts({
-          category:product.category,
-          limit:12
-        });
-
-        let pool=(categoryItems||[])
-          .filter(p=>p.id!==product.id);
-
-        if(pool.length<4){
-          const fallback=await getProducts({limit:16});
-          const seen=new Set(pool.map(p=>p.id));
-
-          for(const item of fallback||[]){
-            if(item.id===product.id||seen.has(item.id))continue;
-            pool.push(item);
-            seen.add(item.id);
-            if(pool.length>=4)break;
-          }
-        }
-
-        if(!cancelled){
-          setRelated(pool.slice(0,4));
-        }
-      }catch{
-        if(!cancelled)setRelated([]);
-      }
+      getProducts({
+        category:product.category,
+        limit:5
+      })
+        .then(items=>
+          setRelated(
+            items
+              .filter(p=>p.id!==product.id)
+              .slice(0,4)
+          )
+        )
+        .catch(()=>{});
     }
-
-    loadRelated();
-
-    return ()=>{
-      cancelled=true;
-    };
-  },[product?.id,product?.category]);
+  },[product?.id]);
 
   const variant=useMemo(
     ()=>
@@ -88,78 +62,28 @@ export default function Product(){
     [product,variantId]
   );
 
+  console.log('PRODUCT VARIANTS:',product?.variants);
+  console.log('SELECTED VARIANT:',variant);
+  console.log('VARIANT IMAGE:',variant?.image_url);
+
   const variantImage=
-    variant?.image_url || null;
+  variant?.image_url || null;
 
-  const galleryImages=useMemo(()=>{
-    const normal=[...(product?.images||[])];
-
-    if(!variantImage){
-      return normal;
-    }
-
-    const variantEntry={
-      id:`variant-${variant?.id}`,
-      url:variantImage,
-      alt_text:`${product?.title||'Product'} - ${variant?.title||'variant'}`
-    };
-
-    return [
-      variantEntry,
-      ...normal.filter(item=>item.url!==variantImage)
-    ];
-  },[product?.images,product?.title,variant?.id,variant?.title,variantImage]);
 
   useEffect(()=>{
-    setGalleryIndex(0);
-  },[variant?.id]);
 
-  function showPreviousImage(){
-    if(galleryImages.length<2)return;
-    setGalleryIndex(index=>
-      index<=0
-        ? galleryImages.length-1
-        : index-1
-    );
-  }
+  /*
+   * Whenever the customer selects another variant,
+   * reset the gallery to image 0.
+   *
+   * Because displayImages places the selected
+   * variant image first, image 0 becomes the
+   * correct variant image.
+   */
+  setActiveImage(0);
 
-  function showNextImage(){
-    if(galleryImages.length<2)return;
-    setGalleryIndex(index=>
-      index>=galleryImages.length-1
-        ? 0
-        : index+1
-    );
-  }
+},[variant?.id]);
 
-  function handleTouchStart(event){
-    setTouchStartX(
-      event.touches?.[0]?.clientX ?? null
-    );
-  }
-
-  function handleTouchEnd(event){
-    if(touchStartX===null)return;
-
-    const endX=event.changedTouches?.[0]?.clientX;
-
-    if(typeof endX!=='number'){
-      setTouchStartX(null);
-      return;
-    }
-
-    const distance=endX-touchStartX;
-
-    if(Math.abs(distance)>42){
-      if(distance<0){
-        showNextImage();
-      }else{
-        showPreviousImage();
-      }
-    }
-
-    setTouchStartX(null);
-  }
 
   if(!product){
     return (
@@ -181,10 +105,17 @@ export default function Product(){
   );
 
   const image=
-    galleryImages[galleryIndex]||
-    galleryImages[0]||
-    images[0];
+  variantImage
+    ? {
+        id:`variant-${variant?.id}`,
+        url:variantImage,
+        alt_text:
+          `${product.title} - ${variant?.title||'variant'}`
+      }
+    : images[activeImage]||
+      images[0];
 
+  
   const inStock=
     variant &&
     (
@@ -353,22 +284,29 @@ export default function Product(){
 
           <div className="luxury-gallery">
 
-            <div
-              className="luxury-gallery__main"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
+            <div className="luxury-gallery__main">
 
               {image
                 ? (
                   <img
-                    key={image.url}
                     src={image.url}
-                    alt={image.alt_text||product.title}
-                    width={image.width||1200}
-                    height={image.height||1400}
+
+                    alt={
+                      image.alt_text||
+                      product.title
+                    }
+
+                    width={
+                      image.width||
+                      1200
+                    }
+
+                    height={
+                      image.height||
+                      1400
+                    }
+
                     loading="eager"
-                    draggable="false"
                   />
                 )
                 : (
@@ -376,68 +314,43 @@ export default function Product(){
                 )
               }
 
-              {galleryImages.length>1&&(
-                <>
-                  <button
-                    type="button"
-                    className="luxury-gallery__arrow luxury-gallery__arrow--prev"
-                    onClick={showPreviousImage}
-                    aria-label="Previous product image"
-                  >
-                    ‹
-                  </button>
-
-                  <button
-                    type="button"
-                    className="luxury-gallery__arrow luxury-gallery__arrow--next"
-                    onClick={showNextImage}
-                    aria-label="Next product image"
-                  >
-                    ›
-                  </button>
-
-                  <span className="luxury-gallery__counter">
-                    {galleryIndex+1} / {galleryImages.length}
-                  </span>
-                </>
-              )}
-
             </div>
+
 
             {(product.images||[]).length>1&&(
               <div className="luxury-gallery__thumbs">
 
-                {(product.images||[]).map((im,index)=>{
-                  const galleryPosition=galleryImages.findIndex(
-                    item=>item.url===im.url
-                  );
+                {(product.images||[]).map((im,index)=>(
+                  <button
+                    type="button"
 
-                  return (
-                    <button
-                      type="button"
-                      key={im.id||im.url||index}
-                      className={
-                        image?.url===im.url
-                          ? 'is-active'
-                          : ''
-                      }
-                      onClick={()=>
-                        setGalleryIndex(
-                          galleryPosition>=0
-                            ? galleryPosition
-                            : 0
-                        )
-                      }
-                      aria-label={`View ${index+1}`}
-                    >
-                      <img
-                        src={im.url}
-                        alt=""
-                        loading="lazy"
-                      />
-                    </button>
-                  );
-                })}
+                    key={
+                      im.id||
+                      im.url||
+                      index
+                    }
+
+                    className={
+                      index===activeImage
+                        ? 'is-active'
+                        : ''
+                    }
+
+                    onClick={()=>
+                      setActiveImage(index)
+                    }
+
+                    aria-label={
+                      `View ${index+1}`
+                    }
+                  >
+                    <img
+                      src={im.url}
+                      alt=""
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
 
               </div>
             )}
@@ -569,8 +482,6 @@ export default function Product(){
                               ? 'is-selected'
                               : ''
                           }
-
-                          aria-pressed={variant?.id===v.id}
 
                           disabled={unavailable}
 
@@ -976,11 +887,11 @@ export default function Product(){
             <div className="luxury-related__heading">
 
               <p className="luxury-pdp__eyebrow">
-                Complete the look
+                You may also like
               </p>
 
               <h2>
-                You may also like
+                Pieces to consider.
               </h2>
 
             </div>
