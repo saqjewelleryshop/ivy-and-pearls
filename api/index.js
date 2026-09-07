@@ -38,29 +38,9 @@ async function getRenderer() {
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
-app.use((req,res,next)=>{
-  if(String(req.hostname||'').endsWith('.vercel.app')){
-    res.setHeader('X-Robots-Tag','noindex, nofollow');
-  }
-  next();
-});
 app.use(securityHeaders);
 app.use(compression());
 app.use(cookieParser());
-
-// Legacy WordPress URL migration: permanent redirects preserve SEO equity.
-const legacyRedirects=new Map([
-  ['/terms-conditions/','/terms/'],
-  ['/product-category/rings/','/collections/rings/'],
-  ['/product-category/necklaces/','/collections/necklaces/'],
-  ['/product-category/earrings/','/collections/earrings/'],
-  ['/product-category/bracelets/','/collections/bracelets/']
-]);
-app.use((req,res,next)=>{
-  const destination=legacyRedirects.get(req.path);
-  if(destination)return res.redirect(301,destination);
-  next();
-});
 
 // Webhook route (must be before json parser)
 app.use('/api/webhooks', express.raw({ type: 'application/json', limit: '1mb' }), webhookRouter);
@@ -91,13 +71,13 @@ app.use('/api', apiLimiter, express.json({ limit: '500kb' }), apiRouter);
 // Static files (robots.txt, sitemap.xml)
 app.get('/robots.txt', (req, res) => {
   const site = (process.env.SITE_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
-  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /api/\nDisallow: /login/\nDisallow: /register/\nDisallow: /forgot-password/\nDisallow: /reset-password/\nDisallow: /order-confirmed/\nDisallow: /wishlist/\nDisallow: /search/\nSitemap: ${site}/sitemap.xml\n`);
+  res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /checkout/\nDisallow: /api/\nSitemap: ${site}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml', async (req, res, next) => {
   try {
     const site = (process.env.SITE_URL || 'https://ivyandpearls.co.uk').replace(/\/$/, '');
-    const staticPages = ['/', '/shop/', '/collections/', '/collections/rings/', '/collections/necklaces/', '/collections/earrings/', '/collections/bracelets/', '/new-arrivals/', '/the-ivy-edit/', '/our-story/', '/journal/', '/contact/', '/delivery-returns/', '/faqs/', '/privacy-policy/', '/terms/', '/cookies/', '/accessibility/'];
+    const staticPages = ['/', '/shop/', '/collections/', '/new-arrivals/', '/the-ivy-edit/', '/our-story/', '/journal/', '/contact/', '/delivery-returns/', '/faqs/', '/privacy-policy/', '/terms/', '/cookies/', '/accessibility/'];
     let records = { products: [], posts: [] };
     if (hasSupabase()) records = await sitemapRecords();
     const urls = [
@@ -105,7 +85,7 @@ app.get('/sitemap.xml', async (req, res, next) => {
       ...records.products.map(p => ({ loc: `/product/${p.slug}/`, lastmod: p.updated_at })),
       ...records.posts.map(p => ({ loc: `/journal/${p.slug}/`, lastmod: p.updated_at }))
     ];
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${site}${u.loc}</loc><lastmod>${new Date(u.lastmod).toISOString()}</lastmod></url>`).join('\n')}\n</urlset>`;
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${site}${u.loc}</loc><lastmod>${new Date(u.lastmod).toISOString()}</lastmod></url>`).join('\n')}\n</urlset>`;
     res.type('application/xml').send(xml);
   } catch (e) {
     next(e);
@@ -121,7 +101,7 @@ async function bootstrapForUrl(url) {
     const products = await listProducts({ limit: 16 });
     return { homeProducts: products };
   }
-  if (p === '/shop/' || p === '/new-arrivals/' || p === '/the-ivy-edit/' || p === '/most-loved/') {
+  if (p === '/shop/' || p === '/search/' || p === '/new-arrivals/' || p === '/the-ivy-edit/' || p === '/most-loved/') {
     return { products: await listProducts({ limit: 48, newArrival: p === '/new-arrivals/', ivyEdit: p === '/the-ivy-edit/' || p === '/most-loved/' }) };
   }
   const collection = p.match(/^\/collections\/([^/]+)\/$/);

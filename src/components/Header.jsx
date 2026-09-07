@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { NAV } from '../lib/config';
 import { useCart } from '../context/CartContext';
 import AnnouncementBar from './AnnouncementBar';
@@ -75,19 +75,29 @@ const BagIcon = () => (
 export default function Header() {
   const cart = useCart();
   const { user } = useAuth();
+  const location = useLocation();
 
   const [menu, setMenu] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [atTop, setAtTop] = useState(true);
 
+
+
   useEffect(() => {
-    if (!menu) return;
+    setMenu(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menu) return undefined;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    setHidden(false);
 
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') setMenu(false);
+      if (event.key === 'Escape') {
+        setMenu(false);
+      }
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -152,7 +162,7 @@ export default function Header() {
 
       <header
         className={`site-header ${
-          hidden ? 'site-header--hidden' : ''
+          hidden && !menu ? 'site-header--hidden' : ''
         } ${atTop ? 'site-header--top' : ''}`}
       >
         {/* TOP ROW */}
@@ -245,10 +255,6 @@ export default function Header() {
           }`}
           aria-label="Mobile navigation"
         >
-          <Link to="/search/" onClick={() => setMenu(false)}>
-            Search
-          </Link>
-
           {NAV.map(([name, path]) => (
             <Link
               key={path}
@@ -258,6 +264,13 @@ export default function Header() {
               {name}
             </Link>
           ))}
+
+          <Link
+            to="/search/"
+            onClick={() => setMenu(false)}
+          >
+            Search
+          </Link>
 
           <Link
             to="/wishlist/"

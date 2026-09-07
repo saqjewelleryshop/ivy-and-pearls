@@ -207,25 +207,34 @@ export default function ProductCard({product}){
 
       {/* QUICK ADD */}
 
-      {product.variants?.length>1 ? (
-        <Link
-          className="quick-add quick-add--link"
-          to={`/product/${product.slug}/`}
-        >
-          View options →
-        </Link>
-      ) : variant ? (
+      {variant&&(
+
         <button
           type="button"
+
           className="quick-add"
-          disabled={variant.inventory_quantity<1&&!variant.allow_backorder}
-          onClick={()=>cart.add(product,variant,1)}
+
+          disabled={
+            variant.inventory_quantity<1
+          }
+
+          onClick={()=>
+            cart.add(
+              product,
+              variant,
+              1
+            )
+          }
         >
-          {variant.inventory_quantity<1&&!variant.allow_backorder
+
+          {variant.inventory_quantity<1
             ? 'Out of stock'
-            : 'Quick add +'}
+            : 'Quick add +'
+          }
+
         </button>
-      ) : null}
+
+      )}
 
     </article>
 

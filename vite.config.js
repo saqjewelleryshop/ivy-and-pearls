@@ -11,10 +11,10 @@ export default defineConfig({
     rollupOptions:{
       output:{
         manualChunks(id){
-          if(id.includes('gsap'))return 'motion';
-          if(id.includes('@stripe'))return 'payments';
-          if(id.includes('@supabase'))return 'supabase';
-          if(id.includes('node_modules'))return 'vendor';
+          if(id.includes('gsap')) return 'motion';
+          if(id.includes('@stripe')) return 'payments';
+          if(id.includes('@supabase')) return 'supabase';
+          if(id.includes('node_modules')) return 'vendor';
         }
       }
     }

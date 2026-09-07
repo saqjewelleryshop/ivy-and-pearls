@@ -23,6 +23,7 @@ export default function Product(){
   const [variantId,setVariantId]=useState(null);
   const [qty,setQty]=useState(1);
   const [activeImage,setActiveImage]=useState(0);
+  const [manualImage,setManualImage]=useState(false);
 
   useEffect(()=>{
     if(!product){
@@ -68,11 +69,9 @@ export default function Product(){
 
 
   useEffect(()=>{
-
-  /* Reset the gallery when a different option is chosen. */
-  setActiveImage(0);
-
-},[variant?.id]);
+    setActiveImage(0);
+    setManualImage(false);
+  },[variant?.id]);
 
 
   if(!product){
@@ -95,7 +94,7 @@ export default function Product(){
   );
 
   const image=
-  variantImage
+  !manualImage && variantImage
     ? {
         id:`variant-${variant?.id}`,
         url:variantImage,
@@ -123,10 +122,7 @@ export default function Product(){
       product.description,
 
     image:
-      [...new Set([
-        ...images.map(i=>i.url),
-        ...(product.variants||[]).map(v=>v.image_url).filter(Boolean)
-      ])],
+      images.map(i=>i.url),
 
     sku:
       variant?.sku,
@@ -329,9 +325,10 @@ export default function Product(){
                         : ''
                     }
 
-                    onClick={()=>
-                      setActiveImage(index)
-                    }
+                    onClick={()=>{
+                      setActiveImage(index);
+                      setManualImage(true);
+                    }}
 
                     aria-label={
                       `View ${index+1}`
@@ -440,6 +437,12 @@ export default function Product(){
                       Choose an option
                     </legend>
 
+                    <button
+                      type="button"
+                      className="luxury-size-guide"
+                    >
+                      Size guide
+                    </button>
 
                   </div>
 
@@ -475,7 +478,6 @@ export default function Product(){
                           onClick={()=>
                             setVariantId(v.id)
                           }
-                          aria-pressed={variant?.id===v.id}
                         >
                           {v.title}
                         </button>
